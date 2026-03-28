@@ -685,32 +685,24 @@
 
     <!-- Auto-Generate from bond parameters -->
     <div id="cf-auto-section" style="display:none;">
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:10px;">
-        <div style="font-size:9px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em;">Bond / NCD Parameters → Auto-compute full cashflow schedule</div>
-        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:10px;">
+
+        <!-- Row 1: Basic bond parameters -->
+        <div style="font-size:9px;color:var(--accent);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">🏦 Bond / NCD Parameters</div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
           <div class="form-field">
             <label>Coupon Rate % (annual)</label>
-            <input type="number" id="ag-coupon" placeholder="e.g. 16.79" step="0.01" oninput="previewAutoGenerate()">
+            <input type="number" id="ag-coupon" placeholder="e.g. 16.79" step="0.0001" oninput="previewAutoGenerate()">
           </div>
           <div class="form-field">
-            <label>Payment Frequency</label>
-            <select id="ag-freq" onchange="previewAutoGenerate()">
-              <option value="1">Annual</option>
-              <option value="2">Semi-annual</option>
-              <option value="4">Quarterly</option>
-              <option value="12" selected>Monthly</option>
+            <label>Day Count Convention</label>
+            <select id="ag-daycount" onchange="previewAutoGenerate()">
+              <option value="actual365">Actual / 365</option>
+              <option value="actual360">Actual / 360</option>
+              <option value="30360">30 / 360</option>
+              <option value="actualactual">Actual / Actual</option>
             </select>
           </div>
-          <div class="form-field">
-            <label>Repayment Type</label>
-            <select id="ag-repay" onchange="previewAutoGenerate()">
-              <option value="bullet">Bullet (at maturity)</option>
-              <option value="equal">Equal instalments</option>
-              <option value="amortizing">Reducing principal</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
           <div class="form-field">
             <label>Investment Date</label>
             <input type="date" id="ag-start" oninput="previewAutoGenerate()">
@@ -719,15 +711,94 @@
             <label>Maturity Date</label>
             <input type="date" id="ag-end" oninput="previewAutoGenerate()">
           </div>
-          <div class="form-field" style="justify-content:flex-end;">
-            <button class="btn btn-primary btn-sm" style="margin-top:auto;" onclick="applyAutoGenerate()">⚙️ Generate Schedule</button>
+        </div>
+
+        <!-- Row 2: Interest payment parameters -->
+        <div style="font-size:9px;color:var(--accent2);margin:12px 0 8px;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">💰 Interest Payment</div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+          <div class="form-field">
+            <label>Interest Frequency</label>
+            <select id="ag-int-freq" onchange="onIntFreqChange()">
+              <option value="12">Monthly</option>
+              <option value="4">Quarterly</option>
+              <option value="2">Half-Yearly</option>
+              <option value="1">Annual</option>
+              <option value="0">Bullet (at maturity)</option>
+              <option value="custom">Custom dates</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>First Interest Date</label>
+            <input type="date" id="ag-first-int" oninput="previewAutoGenerate()">
+          </div>
+          <div class="form-field">
+            <label>Interest Record Date Lag (days)</label>
+            <input type="number" id="ag-int-record-lag" value="15" min="0" max="60" placeholder="e.g. 15" oninput="previewAutoGenerate()">
+          </div>
+          <div class="form-field">
+            <label>Accrued Interest on Purchase?</label>
+            <select id="ag-accrued" onchange="previewAutoGenerate()">
+              <option value="yes">Yes — deduct from first coupon</option>
+              <option value="no">No — full coupon from start</option>
+            </select>
           </div>
         </div>
-        <div id="ag-preview" style="margin-top:10px;font-size:10px;color:var(--muted);"></div>
+        <!-- Custom interest dates -->
+        <div id="ag-custom-int-section" style="display:none;margin-bottom:10px;">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:5px;">Custom Interest Dates (one per line, DD-MM-YYYY)</div>
+          <textarea id="ag-custom-int-dates" rows="3" placeholder="16-01-2026&#10;16-04-2026&#10;16-07-2026" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;resize:vertical;outline:none;"></textarea>
+        </div>
+
+        <!-- Row 3: Principal repayment parameters -->
+        <div style="font-size:9px;color:var(--green);margin:12px 0 8px;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">🔄 Principal Repayment</div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+          <div class="form-field">
+            <label>Repayment Type</label>
+            <select id="ag-repay" onchange="onRepayChange()">
+              <option value="bullet">Bullet (at maturity)</option>
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="halfyearly">Half-Yearly</option>
+              <option value="annual">Annual</option>
+              <option value="equated">Equated / EMI</option>
+              <option value="custom">Custom schedule</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>First Repayment Date</label>
+            <input type="date" id="ag-first-repay" oninput="previewAutoGenerate()">
+          </div>
+          <div class="form-field">
+            <label>Principal Record Date Lag (days)</label>
+            <input type="number" id="ag-repay-record-lag" value="15" min="0" max="60" placeholder="e.g. 15" oninput="previewAutoGenerate()">
+          </div>
+          <div class="form-field">
+            <label>Purchase Date for Record Logic</label>
+            <input type="date" id="ag-purchase-date" oninput="previewAutoGenerate()">
+          </div>
+        </div>
+        <!-- Custom repayment schedule -->
+        <div id="ag-custom-repay-section" style="display:none;margin-bottom:10px;">
+          <div style="font-size:9px;color:var(--muted);margin-bottom:5px;">Custom Repayment Schedule — Date, Amount (one per line)</div>
+          <textarea id="ag-custom-repay-dates" rows="4" placeholder="16-04-2026, 50000&#10;16-10-2026, 50000&#10;16-04-2027, 100000" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;resize:vertical;outline:none;"></textarea>
+        </div>
+
+        <!-- Preview and Generate -->
+        <div id="ag-preview" style="margin:10px 0;font-size:11px;color:var(--muted);min-height:18px;"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="applyAutoGenerate()">⚙️ Generate Full Schedule</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearAutoGenerate()">Clear</button>
+          <span style="font-size:10px;color:var(--muted);" id="ag-summary-text"></span>
+        </div>
       </div>
+
+      <!-- Generated schedule preview -->
       <div id="ag-result-rows" style="display:none;">
-        <div style="font-size:9px;color:var(--green);margin-bottom:6px;" id="ag-result-label"></div>
-        <div id="ag-result-table"></div>
+        <div style="font-size:9px;color:var(--green);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+          <span id="ag-result-label"></span>
+          <span id="ag-skipped-label" style="color:var(--yellow);"></span>
+        </div>
+        <div id="ag-result-table" style="max-height:220px;overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -1525,86 +1596,236 @@ function onTypeChange() {
   if (t === 'NCD') setCFTab('auto');
 }
 
-// ===================== AUTO-GENERATE =====================
+// ===================== PHASE 2 BOND CASHFLOW ENGINE =====================
 let autoGeneratedCFs = null;
+
+function onIntFreqChange() {
+  const v = document.getElementById('ag-int-freq').value;
+  document.getElementById('ag-custom-int-section').style.display = v === 'custom' ? 'block' : 'none';
+  previewAutoGenerate();
+}
+function onRepayChange() {
+  const v = document.getElementById('ag-repay').value;
+  document.getElementById('ag-custom-repay-section').style.display = v === 'custom' ? 'block' : 'none';
+  previewAutoGenerate();
+}
+function clearAutoGenerate() {
+  autoGeneratedCFs = null;
+  document.getElementById('ag-result-rows').style.display = 'none';
+  document.getElementById('ag-preview').textContent = '';
+  document.getElementById('ag-summary-text').textContent = '';
+}
+
+function daysBetweenDates(a, b) { return Math.round((b - a) / 86400000); }
+
+function yearFraction(start, end, convention) {
+  const days = daysBetweenDates(start, end);
+  switch(convention) {
+    case 'actual365':   return days / 365;
+    case 'actual360':   return days / 360;
+    case 'actualactual': {
+      const y = start.getFullYear();
+      const diy = ((y % 4 === 0 && y % 100 !== 0) || y % 400 === 0) ? 366 : 365;
+      return days / diy;
+    }
+    case '30360': {
+      let d1 = start.getDate(), d2 = end.getDate();
+      const m1 = start.getMonth()+1, m2 = end.getMonth()+1;
+      const y1 = start.getFullYear(), y2 = end.getFullYear();
+      if (d1 === 31) d1 = 30;
+      if (d2 === 31 && d1 === 30) d2 = 30;
+      return ((y2-y1)*360 + (m2-m1)*30 + (d2-d1)) / 360;
+    }
+    default: return days / 365;
+  }
+}
+
+function addMonths(date, months) {
+  const d = new Date(date);
+  const originalDay = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() !== originalDay) d.setDate(0);
+  return d;
+}
+
+function generateDateSeries(firstDate, endDate, freqPerYear) {
+  const dates = [];
+  const monthStep = 12 / freqPerYear;
+  let cur = new Date(firstDate);
+  while (cur <= endDate) {
+    dates.push(new Date(cur));
+    cur = addMonths(cur, monthStep);
+  }
+  const lastStr = dates.length ? dates[dates.length-1].toISOString().slice(0,10) : '';
+  if (lastStr !== endDate.toISOString().slice(0,10)) dates.push(new Date(endDate));
+  return dates;
+}
+
+function calcRecordDate(payDate, lagDays) {
+  const d = new Date(payDate); d.setDate(d.getDate() - lagDays); return d;
+}
+
+function investorReceives(purchaseDate, payDate, lagDays) {
+  if (!purchaseDate) return true;
+  return purchaseDate <= calcRecordDate(payDate, lagDays);
+}
 
 function previewAutoGenerate() {
   const coupon = parseFloat(document.getElementById('ag-coupon').value);
-  const freq = parseInt(document.getElementById('ag-freq').value);
-  const start = document.getElementById('ag-start').value;
-  const end = document.getElementById('ag-end').value;
-  const units = parseInt(document.getElementById('f-units').value) || 1;
+  const start  = document.getElementById('ag-start').value;
+  const end    = document.getElementById('ag-end').value;
+  const units  = parseInt(document.getElementById('f-units').value) || 1;
   const faceVal = parseFloat(document.getElementById('f-facevalue').value) || 1000;
   const preview = document.getElementById('ag-preview');
-  if (!coupon || !start || !end) { preview.textContent = 'Fill coupon rate, investment date and maturity date to preview.'; return; }
+  const sumText = document.getElementById('ag-summary-text');
+  if (!coupon || !start || !end) {
+    preview.textContent = 'Fill in coupon rate, investment date and maturity date to preview.';
+    sumText.textContent = ''; return;
+  }
   const totalFace = units * faceVal;
-  const couponPerPeriod = (coupon/100) / freq * totalFace;
   const startD = new Date(start), endD = new Date(end);
-  const monthsTotal = (endD.getFullYear()-startD.getFullYear())*12 + (endD.getMonth()-startD.getMonth());
-  const periods = Math.round(monthsTotal / (12/freq));
-  preview.innerHTML = `<span style="color:var(--accent);">Total face: ₹${totalFace.toLocaleString('en-IN')}</span> · <span style="color:var(--accent2);">${periods} periods</span> · <span style="color:var(--green);">₹${couponPerPeriod.toLocaleString('en-IN',{maximumFractionDigits:2})} coupon/period</span>`;
+  const totalDays = daysBetweenDates(startD, endD);
+  const annualCoupon = totalFace * (coupon/100);
+  preview.innerHTML = '<span style="color:var(--accent);">Face value: \u20b9' + totalFace.toLocaleString('en-IN') + '</span> &nbsp;\u00b7&nbsp; <span style="color:var(--accent2);">Annual coupon: \u20b9' + annualCoupon.toLocaleString('en-IN',{maximumFractionDigits:0}) + '</span> &nbsp;\u00b7&nbsp; <span style="color:var(--green);">Tenor: ' + (totalDays/365).toFixed(2) + ' years (' + totalDays + ' days)</span>';
 }
 
 function applyAutoGenerate() {
-  const coupon = parseFloat(document.getElementById('ag-coupon').value);
-  const freq = parseInt(document.getElementById('ag-freq').value);
-  const start = document.getElementById('ag-start').value;
-  const end = document.getElementById('ag-end').value;
-  const repay = document.getElementById('ag-repay').value;
-  const units = parseInt(document.getElementById('f-units').value) || 1;
-  const faceVal = parseFloat(document.getElementById('f-facevalue').value) || 1000;
-  if (!coupon || !start || !end) { toast('Fill all auto-generate fields', 'warn'); return; }
+  const coupon          = parseFloat(document.getElementById('ag-coupon').value);
+  const daycount        = document.getElementById('ag-daycount').value;
+  const start           = document.getElementById('ag-start').value;
+  const end             = document.getElementById('ag-end').value;
+  const intFreqVal      = document.getElementById('ag-int-freq').value;
+  const firstIntDate    = document.getElementById('ag-first-int').value;
+  const intRecordLag    = parseInt(document.getElementById('ag-int-record-lag').value) || 15;
+  const accruedMode     = document.getElementById('ag-accrued').value;
+  const repayType       = document.getElementById('ag-repay').value;
+  const firstRepayDate  = document.getElementById('ag-first-repay').value;
+  const repayRecordLag  = parseInt(document.getElementById('ag-repay-record-lag').value) || 15;
+  const purchaseDateStr = document.getElementById('ag-purchase-date').value;
+  const units           = parseInt(document.getElementById('f-units').value) || 1;
+  const faceVal         = parseFloat(document.getElementById('f-facevalue').value) || 1000;
 
-  const totalFace = units * faceVal;
-  const periodRate = (coupon/100) / freq;
-  const monthsPerPeriod = 12 / freq;
-  const endD = new Date(end);
-  const rows = [{ date: start, principal: -totalFace, interest: 0 }];
+  if (!coupon || !start || !end) { toast('Fill in coupon rate, investment date and maturity date', 'warn'); return; }
 
-  const payDates = [];
-  let cur = new Date(start);
-  while (true) {
-    const nxt = new Date(cur);
-    nxt.setMonth(nxt.getMonth() + monthsPerPeriod);
-    if (nxt >= endD) { payDates.push(new Date(endD)); break; }
-    payDates.push(new Date(nxt)); cur = nxt;
+  const startD     = new Date(start);
+  const endD       = new Date(end);
+  const purchaseD  = purchaseDateStr ? new Date(purchaseDateStr) : new Date(start);
+  const totalFace  = units * faceVal;
+  const annualRate = coupon / 100;
+
+  // 1. Interest payment dates
+  let intDates = [];
+  if (intFreqVal === '0') {
+    intDates = [new Date(endD)];
+  } else if (intFreqVal === 'custom') {
+    const raw = document.getElementById('ag-custom-int-dates').value.trim().split('\n');
+    intDates = raw.map(l => { const m = l.trim().match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/); return m ? new Date(m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')) : null; }).filter(Boolean);
+  } else {
+    const freq   = parseInt(intFreqVal);
+    const firstD = firstIntDate ? new Date(firstIntDate) : addMonths(startD, 12/freq);
+    intDates     = generateDateSeries(firstD, endD, freq);
   }
-  const n = payDates.length;
-  let outstanding = totalFace;
 
-  payDates.forEach((d, i) => {
-    const dateStr = d.toISOString().slice(0,10);
-    const interest = parseFloat((outstanding * periodRate).toFixed(2));
-    let principal = 0;
-    if (repay === 'bullet') {
-      principal = i === n-1 ? totalFace : 0;
-    } else if (repay === 'equal') {
-      principal = parseFloat((totalFace / n).toFixed(2));
-      outstanding -= principal;
+  // 2. Principal repayment schedule
+  let repaySchedule = [];
+  if (repayType === 'bullet') {
+    repaySchedule = [{ date: new Date(endD), principal: totalFace }];
+  } else if (repayType === 'custom') {
+    const raw = document.getElementById('ag-custom-repay-dates').value.trim().split('\n');
+    raw.forEach(l => {
+      const parts = l.split(',');
+      if (parts.length < 2) return;
+      const dm = parts[0].trim().match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      if (!dm) return;
+      repaySchedule.push({ date: new Date(dm[3]+'-'+dm[2].padStart(2,'0')+'-'+dm[1].padStart(2,'0')), principal: parseFloat(parts[1].replace(/[\u20b9,\s]/g,'')) || 0 });
+    });
+  } else {
+    const freqMap = { monthly:12, quarterly:4, halfyearly:2, annual:1, equated:12 };
+    const freq    = freqMap[repayType] || 1;
+    const firstD  = firstRepayDate ? new Date(firstRepayDate) : addMonths(startD, 12/freq);
+    const dates   = generateDateSeries(firstD, endD, freq);
+    const n       = dates.length;
+    if (repayType === 'equated') {
+      const pr = annualRate / freq;
+      let out  = totalFace;
+      const emi = pr === 0 ? totalFace/n : totalFace * pr * Math.pow(1+pr,n) / (Math.pow(1+pr,n)-1);
+      dates.forEach(d => {
+        const interest = out * pr;
+        const principal = Math.min(Math.max(0, emi-interest), out);
+        out = Math.max(0, out-principal);
+        repaySchedule.push({ date: d, principal: parseFloat(principal.toFixed(2)) });
+      });
     } else {
-      const emi = totalFace * periodRate * Math.pow(1+periodRate,n) / (Math.pow(1+periodRate,n)-1);
-      principal = parseFloat((emi - interest).toFixed(2));
-      outstanding = Math.max(0, outstanding - principal);
+      const inst = parseFloat((totalFace/n).toFixed(2));
+      dates.forEach(d => repaySchedule.push({ date: d, principal: inst }));
     }
-    rows.push({ date: dateStr, principal, interest });
+  }
+  repaySchedule.sort((a,b) => a.date - b.date);
+
+  // 3. Merge all payment dates
+  const allDates = new Set();
+  intDates.forEach(d => allDates.add(d.toISOString().slice(0,10)));
+  repaySchedule.forEach(r => allDates.add(r.date.toISOString().slice(0,10)));
+  const sortedDates = [...allDates].sort();
+
+  // 4. Accrued interest deduction
+  let accruedDeduct = 0;
+  if (accruedMode === 'yes' && intDates.length > 0) {
+    const firstCoupon = intDates[0];
+    const freq2 = intFreqVal === '0' || intFreqVal === 'custom' ? 1 : parseInt(intFreqVal);
+    const ms = 12 / freq2;
+    const prevCoupon = addMonths(firstCoupon, -ms);
+    const periodStart = prevCoupon < startD ? startD : prevCoupon;
+    accruedDeduct = parseFloat((totalFace * annualRate * yearFraction(periodStart, startD, daycount)).toFixed(2));
+  }
+
+  // 5. Build rows
+  let outstanding = totalFace;
+  let prevIntDate = new Date(startD);
+  let skippedCount = 0;
+  const rows = [{ date: start, principal: -totalFace, interest: 0, recordDate: '', skipped: false }];
+
+  sortedDates.forEach(dateStr => {
+    const d = new Date(dateStr);
+    const repayRow = repaySchedule.find(r => r.date.toISOString().slice(0,10) === dateStr);
+    const principalAmt = repayRow ? repayRow.principal : 0;
+    const isIntDate = intDates.some(id => id.toISOString().slice(0,10) === dateStr);
+    let interestAmt = 0;
+    if (isIntDate) {
+      interestAmt = parseFloat((outstanding * annualRate * yearFraction(prevIntDate, d, daycount)).toFixed(2));
+      if (accruedDeduct > 0) { interestAmt = Math.max(0, parseFloat((interestAmt - accruedDeduct).toFixed(2))); accruedDeduct = 0; }
+      prevIntDate = new Date(d);
+    }
+    const lag   = principalAmt > 0 ? repayRecordLag : intRecordLag;
+    const rd    = calcRecordDate(d, lag);
+    const rdStr = rd.toISOString().slice(0,10);
+    const receives = investorReceives(purchaseD, d, lag);
+    if (!receives) {
+      skippedCount++;
+      rows.push({ date: dateStr, principal: 0, interest: 0, recordDate: rdStr, skipped: true, origP: principalAmt, origI: interestAmt });
+    } else {
+      rows.push({ date: dateStr, principal: principalAmt, interest: interestAmt, recordDate: rdStr, skipped: false });
+      if (principalAmt > 0) outstanding -= principalAmt;
+    }
   });
 
-  autoGeneratedCFs = rows;
+  autoGeneratedCFs = rows.filter(r => !r.skipped);
+  const totalCoupon    = autoGeneratedCFs.reduce((a,r)=>a+r.interest,0);
+  const totalRepayment = autoGeneratedCFs.filter(r=>r.principal>0).reduce((a,r)=>a+r.principal,0);
+
   document.getElementById('ag-result-label').textContent =
-    `✓ Generated ${rows.length} rows · Total coupon: ₹${rows.reduce((a,r)=>a+r.interest,0).toLocaleString('en-IN',{maximumFractionDigits:2})}`;
-  document.getElementById('ag-result-table').innerHTML = `
-    <div class="ag-preview-rows"><div class="table-wrap"><table>
-      <thead><tr><th>Date</th><th>Principal</th><th>Interest</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr>
-        <td class="date-col">${r.date}</td>
-        <td style="text-align:right;font-size:10px;color:${r.principal<0?'var(--red)':r.principal>0?'var(--green)':'var(--border)'}">${r.principal!==0?'₹'+Math.abs(r.principal).toLocaleString('en-IN',{maximumFractionDigits:2}):'-'}</td>
-        <td style="text-align:right;font-size:10px;color:var(--green)">${r.interest>0?'₹'+r.interest.toLocaleString('en-IN',{maximumFractionDigits:2}):'-'}</td>
-      </tr>`).join('')}
-      </tbody>
-    </table></div></div>`;
+    '\u2713 ' + rows.length + ' rows \u00b7 Coupon: \u20b9' + totalCoupon.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' \u00b7 Repayment: \u20b9' + totalRepayment.toLocaleString('en-IN',{maximumFractionDigits:0});
+  document.getElementById('ag-skipped-label').textContent = skippedCount > 0 ? '\u26a0\ufe0f ' + skippedCount + ' payment' + (skippedCount>1?'s':'') + ' skipped (record date passed before purchase)' : '';
+
+  const fmtAmt = (n, neg) => n !== 0 ? '\u20b9' + Math.abs(n).toLocaleString('en-IN',{maximumFractionDigits:2}) : '-';
+  document.getElementById('ag-result-table').innerHTML = '<div class="table-wrap"><table><thead><tr><th>Payment Date</th><th>Record Date</th><th>Principal</th><th>Interest</th><th>Status</th></tr></thead><tbody>' +
+    rows.map(r => '<tr style="' + (r.skipped?'opacity:0.4;':r.date===start?'background:rgba(248,113,113,0.06);':'') + '"><td class="date-col">' + r.date + '</td><td class="date-col" style="color:var(--yellow);font-size:10px;">' + (r.recordDate||'\u2014') + '</td><td style="text-align:right;font-size:10px;color:' + ((r.origP||r.principal)<0?'var(--red)':(r.origP||r.principal)>0?'var(--green)':'var(--border)') + '">' + fmtAmt(r.origP||r.principal) + '</td><td style="text-align:right;font-size:10px;color:var(--green);">' + ((r.origI||r.interest)>0?'\u20b9'+(r.origI||r.interest).toLocaleString('en-IN',{maximumFractionDigits:2}):'-') + '</td><td style="font-size:9px;text-align:center;">' + (r.date===start?'<span style="color:var(--red);">Investment</span>':r.skipped?'<span style="color:var(--muted);">Skipped</span>':'<span style="color:var(--green);">\u2713</span>') + '</td></tr>').join('') +
+    '</tbody></table></div>';
   document.getElementById('ag-result-rows').style.display = 'block';
-  toast(`Generated ${rows.length} cashflow rows`, 'success');
+  toast('Generated ' + rows.length + ' cashflow rows' + (skippedCount?' (' + skippedCount + ' skipped)':''), 'success');
 }
+
+
 
 // ===================== PASTE FROM REGISTRY =====================
 let parsedPasteCFs = null;
