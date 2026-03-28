@@ -3056,12 +3056,13 @@ document.getElementById('cas-modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal('cas-modal');
 });
 
-
+// On page load — check if user already has an active session
+window.addEventListener('load', async function() {
   const { data: { session } } = await _sb.auth.getSession();
   if (session?.user) {
     onAuth(session.user);
   }
-  // If no session, login overlay stays visible (it's flex by default)
+  // If no session, login overlay stays visible
 });
 
 
