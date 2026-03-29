@@ -146,6 +146,48 @@
   .reminder-btn:hover { background: rgba(251,191,36,0.15); }
   .cas-btn { background: rgba(45,212,191,0.08); border: 1px solid rgba(45,212,191,0.3); color: #2dd4bf; padding: 5px 14px; border-radius: 20px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
   .cas-btn:hover { background: rgba(45,212,191,0.15); }
+
+  /* ── CREDIT RATING BADGE ── */
+  .rating-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; font-size:9px; font-family:'DM Mono',monospace; font-weight:600; letter-spacing:0.06em; }
+  .rating-aaa,.rating-aa { background:rgba(74,222,128,0.15); color:var(--green); border:1px solid rgba(74,222,128,0.3); }
+  .rating-a   { background:rgba(91,141,238,0.15); color:var(--accent2); border:1px solid rgba(91,141,238,0.3); }
+  .rating-bbb { background:rgba(251,191,36,0.15); color:var(--yellow); border:1px solid rgba(251,191,36,0.3); }
+  .rating-bb,.rating-b,.rating-c,.rating-d { background:rgba(248,113,113,0.15); color:var(--red); border:1px solid rgba(248,113,113,0.3); }
+  .rating-none { background:var(--surface2); color:var(--muted); border:1px solid var(--border); }
+
+  /* ── EDITABLE TABLE CELLS ── */
+  .editable-cell { cursor:pointer; position:relative; }
+  .editable-cell:hover::after { content:'✎'; position:absolute; right:2px; top:50%; transform:translateY(-50%); font-size:9px; color:var(--accent); opacity:0.7; }
+  .editable-cell input { background:var(--surface2); border:1px solid var(--accent); color:var(--text); padding:2px 6px; border-radius:3px; font-family:'DM Mono',monospace; font-size:11px; width:100%; outline:none; }
+  .edit-row-actions { display:flex; gap:4px; justify-content:center; }
+  .edit-row-actions button { padding:2px 8px; font-size:9px; border-radius:3px; cursor:pointer; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:'DM Mono',monospace; }
+  .edit-row-actions button.save { border-color:var(--green); color:var(--green); }
+  .edit-row-actions button.cancel { border-color:var(--red); color:var(--red); }
+
+  /* ── PRESENT VALUE SECTION ── */
+  .pv-section { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-top:12px; }
+  .pv-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-top:10px; }
+  .pv-item { text-align:center; }
+  .pv-item .pv-label { font-size:9px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:3px; }
+  .pv-item .pv-value { font-size:16px; font-weight:700; font-family:'Playfair Display',serif; }
+
+  /* ── PLAYCARD DRILL-DOWN MODAL ── */
+  .drill-table { width:100%; border-collapse:collapse; font-size:11px; }
+  .drill-table th { font-size:9px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); }
+  .drill-table td { padding:8px 10px; border-bottom:1px solid rgba(37,41,56,0.4); }
+  .drill-table tr:last-child td { border-bottom:none; }
+  .drill-table tr:hover td { background:var(--highlight); }
+
+  /* ── ISIN LOOKUP ── */
+  .isin-lookup-btn { background:rgba(91,141,238,0.1); border:1px solid rgba(91,141,238,0.3); color:var(--accent2); padding:2px 8px; border-radius:4px; font-size:9px; cursor:pointer; font-family:'DM Mono',monospace; margin-left:6px; transition:all 0.15s; }
+  .isin-lookup-btn:hover { background:rgba(91,141,238,0.2); }
+  .isin-lookup-result { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:10px 14px; margin-top:8px; font-size:11px; display:none; }
+  .isin-lookup-result.visible { display:block; }
+  .isin-lookup-field { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid rgba(37,41,56,0.3); }
+  .isin-lookup-field:last-child { border-bottom:none; }
+  .isin-lookup-field .k { color:var(--muted); font-size:10px; }
+  .isin-lookup-field .v { color:var(--text); font-weight:500; }
+
   .zerodha-btn { background: rgba(255,87,34,0.08); border: 1px solid rgba(255,87,34,0.3); color: #ff5722; padding: 5px 14px; border-radius: 20px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
   .zerodha-btn:hover { background: rgba(255,87,34,0.15); }
   .zerodha-btn.connected { background: rgba(74,222,128,0.08); border-color: rgba(74,222,128,0.3); color: var(--green); }
@@ -511,48 +553,54 @@
 
   <!-- ── PLAYCARDS ── -->
   <div class="playcard-grid" id="playcard-grid">
-    <div class="playcard stagger-1" style="--i:0">
+    <div class="playcard stagger-1" style="--i:0;cursor:pointer;" onclick="openDrillDown('invested')">
       <div class="playcard-accent" style="background:linear-gradient(90deg,var(--accent),#e8c07a)"></div>
       <span class="playcard-icon">💼</span>
       <div class="playcard-label">Total Invested</div>
       <div class="playcard-value acc" id="pc-invested">—</div>
       <div class="playcard-sub" id="pc-invested-sub">across all instruments</div>
+      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
     </div>
-    <div class="playcard stagger-2">
+    <div class="playcard stagger-2" style="cursor:pointer;" onclick="openDrillDown('outstanding')">
       <div class="playcard-accent" style="background:linear-gradient(90deg,var(--green),#86efac)"></div>
       <span class="playcard-icon">📈</span>
       <div class="playcard-label">Outstanding Principal</div>
       <div class="playcard-value pos" id="pc-outstanding">—</div>
       <div class="playcard-sub" id="pc-outstanding-sub">currently deployed</div>
+      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
     </div>
-    <div class="playcard stagger-3">
+    <div class="playcard stagger-3" style="cursor:pointer;" onclick="openDrillDown('upcoming')">
       <div class="playcard-accent" style="background:linear-gradient(90deg,var(--accent2),#93c5fd)"></div>
       <span class="playcard-icon">🔮</span>
       <div class="playcard-label">Upcoming Inflows</div>
       <div class="playcard-value" style="color:var(--accent2)" id="pc-upcoming">—</div>
       <div class="playcard-sub" id="pc-upcoming-sub">next 30 days</div>
       <div class="playcard-trend" id="pc-upcoming-trend"></div>
+      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
     </div>
-    <div class="playcard stagger-4">
+    <div class="playcard stagger-4" style="cursor:pointer;" onclick="openDrillDown('xirr')">
       <div class="playcard-accent" style="background:linear-gradient(90deg,var(--yellow),#fde68a)"></div>
       <span class="playcard-icon">⚡</span>
       <div class="playcard-label">Avg XIRR</div>
       <div class="playcard-value" style="color:var(--yellow)" id="pc-xirr">—</div>
       <div class="playcard-sub">weighted average return</div>
+      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
     </div>
-    <div class="playcard stagger-5">
+    <div class="playcard stagger-5" style="cursor:pointer;" onclick="openDrillDown('received')">
       <div class="playcard-accent" style="background:linear-gradient(90deg,#a78bfa,#c4b5fd)"></div>
       <span class="playcard-icon">✅</span>
       <div class="playcard-label">Received Returns</div>
       <div class="playcard-value pos" id="pc-received">—</div>
       <div class="playcard-sub">total cashflows received</div>
+      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
     </div>
-    <div class="playcard stagger-6">
+    <div class="playcard stagger-6" style="cursor:pointer;" onclick="openDrillDown('idle')">
       <div class="playcard-accent" style="background:linear-gradient(90deg,var(--red),#fca5a5)"></div>
       <span class="playcard-icon">🔄</span>
       <div class="playcard-label">Not Reinvested</div>
       <div class="playcard-value neg" id="pc-not-reinvested">—</div>
       <div class="playcard-sub">idle capital</div>
+      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
     </div>
   </div>
 
@@ -634,18 +682,62 @@
 
     <!-- ISINs + Registry Links -->
     <div class="section-label">ISINs
-      <span style="font-weight:400;color:var(--border);margin-left:6px;">— add ISINs, then open registry links to fetch/verify cashflows</span>
+      <span style="font-weight:400;color:var(--border);margin-left:6px;">— add ISINs, then use lookup or open registry links</span>
     </div>
     <div id="isin-list" class="isin-list"></div>
     <div class="isin-add-row">
       <input type="text" id="isin-input" placeholder="Type ISIN e.g. INE0OOQ07726 and press Enter" maxlength="20"
         onkeydown="if(event.key==='Enter'){event.preventDefault();addIsin();}">
       <button class="btn btn-ghost btn-sm" onclick="addIsin()">+ Add</button>
+      <button class="isin-lookup-btn" onclick="lookupISIN()" title="Auto-fetch bond details from BSE">🔍 Auto-fill from BSE</button>
+    </div>
+    <!-- ISIN lookup result -->
+    <div id="isin-lookup-result" class="isin-lookup-result">
+      <div style="font-size:10px;color:var(--accent2);font-weight:600;margin-bottom:6px;">📡 Bond Details from BSE</div>
+      <div id="isin-lookup-fields"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;color:var(--accent);" onclick="applyISINLookup()">Apply to instrument →</button>
     </div>
     <!-- Registry lookup links shown dynamically -->
     <div id="registry-links" style="display:none;margin-top:10px;">
       <div style="font-size:9px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;">🔗 Open ISIN in Registry — copy cashflow table, paste below</div>
       <div id="registry-links-inner" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+
+    <!-- Credit Rating -->
+    <div class="section-label">Credit Rating</div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr;">
+      <div class="form-field">
+        <label>Rating Agency</label>
+        <select id="f-rating-agency">
+          <option value="">None</option>
+          <option>CRISIL</option><option>ICRA</option><option>CARE</option>
+          <option>India Ratings</option><option>Brickwork</option><option>Acuité</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Rating</label>
+        <input type="text" id="f-rating" placeholder="e.g. AA+, AA, A+" style="text-transform:uppercase;">
+      </div>
+      <div class="form-field">
+        <label>Outlook</label>
+        <select id="f-rating-outlook">
+          <option value="">—</option>
+          <option>Stable</option><option>Positive</option><option>Negative</option><option>Watch</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Rating Date</label>
+        <input type="date" id="f-rating-date">
+      </div>
+      <div class="form-field">
+        <label>Rating Watch / Alert</label>
+        <select id="f-rating-watch">
+          <option value="none">None</option>
+          <option value="upgrade">Upgrade Watch</option>
+          <option value="downgrade">Downgrade Watch</option>
+          <option value="review">Under Review</option>
+        </select>
+      </div>
     </div>
 
     <!-- Cashflow Section -->
@@ -826,6 +918,71 @@ or
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('add-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveInstrument()">Save Instrument</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PLAYCARD DRILL-DOWN MODAL ===== -->
+<div class="modal-overlay" id="drill-modal">
+  <div class="modal" style="width:620px;max-height:85vh;overflow-y:auto;">
+    <div class="modal-title" id="drill-title">Details</div>
+    <div id="drill-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('drill-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PRESENT VALUE / YTM MODAL ===== -->
+<div class="modal-overlay" id="pv-modal">
+  <div class="modal" style="width:580px;">
+    <div class="modal-title" id="pv-modal-title">📐 Present Value & YTM</div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:14px;">
+      <div class="form-field">
+        <label>Discount Rate / Required Yield %</label>
+        <input type="number" id="pv-discount" value="12" step="0.01" placeholder="e.g. 12" oninput="calcPV()">
+      </div>
+      <div class="form-field">
+        <label>Valuation Date</label>
+        <input type="date" id="pv-date" oninput="calcPV()">
+      </div>
+      <div class="form-field">
+        <label>Market Price (₹ per unit, optional)</label>
+        <input type="number" id="pv-market-price" step="0.01" placeholder="e.g. 980" oninput="calcPV()">
+      </div>
+    </div>
+    <div class="pv-section">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Results</div>
+      <div class="pv-grid">
+        <div class="pv-item">
+          <div class="pv-label">Present Value</div>
+          <div class="pv-value" id="pv-result" style="color:var(--accent);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">YTM (Newton-Raphson)</div>
+          <div class="pv-value" id="pv-ytm" style="color:var(--accent2);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Duration (years)</div>
+          <div class="pv-value" id="pv-duration" style="color:var(--yellow);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Modified Duration</div>
+          <div class="pv-value" id="pv-mod-duration" style="color:var(--green);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Accrued Interest</div>
+          <div class="pv-value" id="pv-accrued" style="color:var(--muted);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Clean Price</div>
+          <div class="pv-value" id="pv-clean" style="color:var(--text);">—</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:10px;color:var(--muted);line-height:1.6;" id="pv-cashflow-count"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('pv-modal')">Close</button>
     </div>
   </div>
 </div>
@@ -1305,14 +1462,35 @@ function refresh() {
 }
 
 function renderInstrumentTags() {
-  document.getElementById('instrument-tags').innerHTML = instruments.map(ins =>
-    `<span class="instrument-tag ${activeInstrumentId===ins.id?'active':''}" onclick="selectInstrument(${ins.id})">
+  document.getElementById('instrument-tags').innerHTML = instruments.map(ins => {
+    const rating = ins.creditRating;
+    const ratingClass = rating ? getRatingClass(rating.rating) : 'rating-none';
+    const ratingBadge = rating && rating.rating
+      ? `<span class="rating-badge ${ratingClass}" title="${rating.agency||''} · ${rating.outlook||''}">${rating.rating}</span>`
+      : '';
+    return `<span class="instrument-tag ${activeInstrumentId===ins.id?'active':''}" onclick="selectInstrument(${ins.id})">
       ${ins.name}
-      ${ins.isins && ins.isins.length > 1 ? `<span style="font-size:9px;color:var(--muted);">${ins.isins.length} ISINs</span>` : ins.isins && ins.isins.length === 1 ? `<span style="font-size:9px;color:var(--border);">${ins.isins[0]}</span>` : ''}
+      ${ratingBadge}
+      ${ins.isins && ins.isins.length === 1 ? `<span style="font-size:9px;color:var(--border);">${ins.isins[0]}</span>` : ins.isins && ins.isins.length > 1 ? `<span style="font-size:9px;color:var(--muted);">${ins.isins.length} ISINs</span>` : ''}
+      <span style="font-size:9px;color:var(--accent2);cursor:pointer;padding:0 3px;" onclick="event.stopPropagation();openPVModal(${ins.id})" title="Present Value / YTM">📐</span>
+      <span style="font-size:9px;color:var(--muted);cursor:pointer;padding:0 3px;" onclick="event.stopPropagation();openAddModal(${ins.id})" title="Edit instrument">✎</span>
       <span class="remove" onclick="event.stopPropagation();removeInstrument(${ins.id})">×</span>
-    </span>`
-  ).join('');
+    </span>`;
+  }).join('');
 }
+
+function getRatingClass(r) {
+  if (!r) return 'rating-none';
+  const u = r.toUpperCase();
+  if (u.startsWith('AAA')) return 'rating-aaa';
+  if (u.startsWith('AA'))  return 'rating-aa';
+  if (u.startsWith('A'))   return 'rating-a';
+  if (u.startsWith('BBB')) return 'rating-bbb';
+  if (u.startsWith('BB') || u.startsWith('B')) return 'rating-bb';
+  if (u.startsWith('C') || u.startsWith('D'))  return 'rating-c';
+  return 'rating-none';
+}
+
 
 function renderEmpty() {
   document.getElementById('table-container').innerHTML = `<div class="empty-state"><div class="icon">📊</div><p>No instruments added yet.<br>Click "+ Add Instrument" to get started.</p></div>`;
@@ -1329,8 +1507,8 @@ function renderOverall(tab) {
         <tr><th class="col-date" rowspan="2">Date</th><th colspan="4">Overall Portfolio</th></tr>
         <tr><th>Principal</th><th>Interest</th><th>Cashflows</th><th>Cashflows – Aft TDS</th></tr>
       </thead>
-      <tbody>${rows.map(r => `<tr class="${r.date<=today?'row-past':''}">
-        <td class="date-col">${fmtDate(r.date)}</td>
+      <tbody>${rows.map((r,ri) => `<tr class="${r.date<=today?'row-past':''}" id="tr-overall-${ri}">
+        <td class="date-col editable-cell" onclick="editOverallCell(${ri},'date','${r.date}')">${fmtDate(r.date)}</td>
         <td>${fmtNum(r.total_principal)}</td>
         <td>${fmtNum(r.total_interest)}</td>
         <td>${fmtNum(r.total_cashflow)}</td>
@@ -1523,10 +1701,23 @@ function openAddModal(editId) {
       document.getElementById('f-type').value = ins.type||'FD';
       document.getElementById('f-units').value = ins.units||1;
       document.getElementById('f-facevalue').value = ins.faceValue||1000;
+      // Load credit rating
+      const cr = ins.creditRating || {};
+      document.getElementById('f-rating-agency').value  = cr.agency  || '';
+      document.getElementById('f-rating').value          = cr.rating  || '';
+      document.getElementById('f-rating-outlook').value  = cr.outlook || '';
+      document.getElementById('f-rating-date').value     = cr.date    || '';
+      document.getElementById('f-rating-watch').value    = cr.watch   || 'none';
       pendingISINs = [...(ins.isins||[])];
       ins.cashflows.forEach(cf => addCashflowRow(cf));
     }
   } else {
+    // Reset credit rating
+    document.getElementById('f-rating-agency').value  = '';
+    document.getElementById('f-rating').value          = '';
+    document.getElementById('f-rating-outlook').value  = '';
+    document.getElementById('f-rating-date').value     = '';
+    document.getElementById('f-rating-watch').value    = 'none';
     addCashflowRow();
   }
   renderIsinList();
@@ -2008,12 +2199,22 @@ function saveInstrument() {
   }
   if (!cashflows.length) { toast('Add at least one cashflow row or use auto-generate / paste', 'warn'); return; }
 
-  const ins = { id: editingId || Date.now(), name, isins: [...pendingISINs], nominal, xirr, tdsRate, type, units, faceValue, cashflows };
+  // Credit Rating
+  const creditRating = {
+    agency:  document.getElementById('f-rating-agency').value,
+    rating:  document.getElementById('f-rating').value.trim().toUpperCase(),
+    outlook: document.getElementById('f-rating-outlook').value,
+    date:    document.getElementById('f-rating-date').value,
+    watch:   document.getElementById('f-rating-watch').value
+  };
+
+  const ins = { id: editingId || Date.now(), name, isins: [...pendingISINs], nominal, xirr, tdsRate, type, units, faceValue, cashflows, creditRating };
   if (editingId) instruments = instruments.map(i => i.id === editingId ? ins : i);
   else instruments.push(ins);
 
   closeModal('add-modal');
   refresh();
+  persistInstruments();
   toast(editingId ? `"${name}" updated` : `"${name}" added`, 'success');
 }
 
@@ -2033,8 +2234,10 @@ function selectInstrument(id) { activeInstrumentId = activeInstrumentId===id ? n
 
 function removeInstrument(id) {
   if (!confirm('Remove this instrument and all its cashflows?')) return;
+  const ins = instruments.find(i => i.id === id);
   instruments = instruments.filter(i => i.id !== id);
   if (activeInstrumentId === id) activeInstrumentId = null;
+  if (ins && ins._dbId) deleteInstrumentFromDB(ins._dbId);
   refresh();
 }
 
@@ -2412,6 +2615,7 @@ async function doSignOut() {
 // After successful auth
 async function onAuth(user) {
   if (!user) return;
+  window._currentUser = user;
   // Hide login overlay
   document.getElementById('login-overlay').style.display = 'none';
   // Show sign out button
@@ -2423,14 +2627,526 @@ async function onAuth(user) {
   if (role === 'admin') {
     document.getElementById('admin-bar').classList.add('show');
   }
-  // Show profile button with user info
+  // Show profile button
   showProfileButton(user);
+  // Load saved instruments from Supabase
+  await loadInstruments(user.id);
   // Set current date and refresh
   document.getElementById('current-date-display').textContent = fmtDate(getToday());
   refresh();
 }
 
+// ===================== SUPABASE PERSISTENCE =====================
+async function loadInstruments(userId) {
+  try {
+    const { data, error } = await _sb
+      .from('instruments')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+    if (error || !data) return;
+
+    // For each instrument, load its ISINs and cashflows
+    const loaded = await Promise.all(data.map(async row => {
+      const [isinRes, cfRes] = await Promise.all([
+        _sb.from('isins').select('isin_code').eq('instrument_id', row.id),
+        _sb.from('cashflows').select('*').eq('instrument_id', row.id).order('cashflow_date', { ascending: true })
+      ]);
+      return {
+        id:           row.id,
+        _dbId:        row.id,
+        name:         row.name,
+        type:         row.type || 'FD',
+        nominal:      row.nominal_pct || 0,
+        xirr:         row.xirr_pct || 0,
+        tdsRate:      row.tds_rate || 0.1,
+        units:        row.units || 1,
+        faceValue:    row.face_value || 1000,
+        creditRating: row.credit_rating || {},
+        isins:        (isinRes.data || []).map(r => r.isin_code),
+        cashflows:    (cfRes.data || []).map(r => ({
+          date:      r.cashflow_date,
+          principal: r.principal || 0,
+          interest:  r.interest  || 0
+        }))
+      };
+    }));
+    instruments = loaded.filter(i => i.cashflows.length > 0);
+  } catch(e) {
+    console.warn('Could not load instruments from Supabase:', e.message);
+  }
+}
+
+async function persistInstruments() {
+  if (!window._currentUser) return;
+  const userId = window._currentUser.id;
+
+  for (const ins of instruments) {
+    try {
+      // Upsert instrument row
+      const { data: insRow, error: insErr } = await _sb
+        .from('instruments')
+        .upsert({
+          id:           ins._dbId || undefined,
+          user_id:      userId,
+          name:         ins.name,
+          type:         ins.type,
+          nominal_pct:  ins.nominal,
+          xirr_pct:     ins.xirr,
+          tds_rate:     ins.tdsRate,
+          units:        ins.units,
+          face_value:   ins.faceValue,
+          credit_rating: ins.creditRating || {}
+        }, { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (insErr || !insRow) { console.warn('instrument upsert error', insErr); continue; }
+
+      // Store DB id back on the instrument
+      ins._dbId = insRow.id;
+      ins.id    = insRow.id;
+
+      // Delete old ISINs and cashflows, re-insert fresh
+      await Promise.all([
+        _sb.from('isins').delete().eq('instrument_id', insRow.id),
+        _sb.from('cashflows').delete().eq('instrument_id', insRow.id)
+      ]);
+
+      // Re-insert ISINs
+      if (ins.isins && ins.isins.length) {
+        await _sb.from('isins').insert(
+          ins.isins.map(code => ({ instrument_id: insRow.id, isin_code: code }))
+        );
+      }
+
+      // Re-insert cashflows
+      if (ins.cashflows && ins.cashflows.length) {
+        await _sb.from('cashflows').insert(
+          ins.cashflows.map(cf => ({
+            instrument_id: insRow.id,
+            cashflow_date: cf.date,
+            principal:     cf.principal || 0,
+            interest:      cf.interest  || 0
+          }))
+        );
+      }
+    } catch(e) {
+      console.warn('persist error for', ins.name, e.message);
+    }
+  }
+}
+
+async function deleteInstrumentFromDB(id) {
+  if (!window._currentUser) return;
+  try {
+    await _sb.from('instruments').delete().eq('id', id);
+  } catch(e) { console.warn('delete error', e); }
+}
+
 // On page load — check if already logged in
+
+
+// ===================== EDITABLE CASHFLOW ROWS =====================
+function editOverallCell(ri, field, currentVal) {
+  // Find which instrument + cashflow this row belongs to
+  // For now just show a toast — individual row editing is on the instrument detail view
+  toast('To edit cashflows, click ✎ on the instrument tag above', 'warn');
+}
+
+function editCashflowInstrument(insId, cfIdx) {
+  const ins = instruments.find(i => i.id === insId);
+  if (!ins) return;
+  const cf = ins.cashflows[cfIdx];
+  if (!cf) return;
+
+  const rowEl = document.getElementById(`cf-row-${insId}-${cfIdx}`);
+  if (!rowEl) return;
+
+  rowEl.innerHTML = `
+    <td><input type="date" id="cfe-date-${cfIdx}" value="${cf.date}" style="background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;"></td>
+    <td><input type="number" id="cfe-principal-${cfIdx}" value="${cf.principal}" step="0.01" style="background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;width:110px;"></td>
+    <td><input type="number" id="cfe-interest-${cfIdx}" value="${cf.interest}" step="0.01" style="background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;width:110px;"></td>
+    <td colspan="2">
+      <div class="edit-row-actions">
+        <button class="save" onclick="saveCashflowEdit(${insId},${cfIdx})">✓ Save</button>
+        <button class="cancel" onclick="refresh()">✕</button>
+        <button onclick="deleteCashflowRow(${insId},${cfIdx})" style="color:var(--red);border-color:var(--red);">🗑</button>
+      </div>
+    </td>`;
+}
+
+function saveCashflowEdit(insId, cfIdx) {
+  const ins = instruments.find(i => i.id === insId);
+  if (!ins) return;
+  const date      = document.getElementById(`cfe-date-${cfIdx}`)?.value;
+  const principal = parseFloat(document.getElementById(`cfe-principal-${cfIdx}`)?.value) || 0;
+  const interest  = parseFloat(document.getElementById(`cfe-interest-${cfIdx}`)?.value)  || 0;
+  if (!date) { toast('Date is required', 'warn'); return; }
+  ins.cashflows[cfIdx] = { date, principal, interest };
+  persistInstruments();
+  refresh();
+  toast('Cashflow row updated ✓', 'success');
+}
+
+function deleteCashflowRow(insId, cfIdx) {
+  const ins = instruments.find(i => i.id === insId);
+  if (!ins) return;
+  if (!confirm('Delete this cashflow row?')) return;
+  ins.cashflows.splice(cfIdx, 1);
+  persistInstruments();
+  refresh();
+  toast('Row deleted', 'success');
+}
+
+// Render individual instrument cashflows with edit buttons
+function renderInstrumentCashflowTable(ins) {
+  const today = getToday();
+  const rows  = computeRows(ins);
+  if (!rows.length) return '<div style="color:var(--muted);font-size:12px;padding:10px;">No cashflows.</div>';
+
+  return `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Date</th><th>Principal</th><th>Interest</th>
+      <th>Net (after TDS)</th><th>Status</th><th style="width:60px;"></th>
+    </tr></thead>
+    <tbody>
+    ${ins.cashflows.map((cf, cfIdx) => {
+      const d   = new Date(cf.date);
+      const tds = cf.interest > 0 ? cf.interest * (ins.tdsRate||0.1) : 0;
+      const net = (cf.principal||0) + (cf.interest||0) - tds;
+      const past = cf.date <= today.toISOString().slice(0,10);
+      return `<tr id="cf-row-${ins.id}-${cfIdx}" class="${past?'row-past':''}" style="${(cf.principal||0)<0?'background:rgba(248,113,113,0.04);':''}">
+        <td class="date-col">${fmtDate(d)}</td>
+        <td style="text-align:right;font-size:11px;color:${(cf.principal||0)<0?'var(--red)':(cf.principal||0)>0?'var(--green)':'var(--muted)'}">
+          ${(cf.principal||0)!==0?fmtCcy(cf.principal):'-'}
+        </td>
+        <td style="text-align:right;font-size:11px;color:var(--green)">${(cf.interest||0)>0?fmtCcy(cf.interest):'-'}</td>
+        <td style="text-align:right;font-size:11px;color:${net>0?'var(--green)':net<0?'var(--red)':'var(--muted)'}">${fmtCcy(net)}</td>
+        <td style="font-size:10px;text-align:center;">${past?'<span style="color:var(--muted);">Past</span>':'<span style="color:var(--green);">Upcoming</span>'}</td>
+        <td><button onclick="editCashflowInstrument(${ins.id},${cfIdx})" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;" title="Edit row">✎</button></td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// ===================== PLAYCARD DRILL-DOWN =====================
+function openDrillDown(cardType) {
+  const today = getToday();
+  const dU    = parseInt(document.getElementById('days-upcoming')?.value) || 30;
+  const cutU  = new Date(today); cutU.setDate(cutU.getDate() + dU);
+  let title = '', html = '';
+
+  switch(cardType) {
+    case 'invested': {
+      title = '💼 Total Invested — Breakdown';
+      const rows = instruments.map(ins => {
+        const inv = ins.cashflows.filter(cf => (cf.principal||0) < 0).reduce((a,cf) => a + Math.abs(cf.principal||0), 0);
+        return { name: ins.name, isin: (ins.isins||[])[0]||'—', type: ins.type, inv, rating: ins.creditRating?.rating||'—' };
+      }).filter(r => r.inv > 0).sort((a,b) => b.inv - a.inv);
+      html = `<table class="drill-table"><thead><tr><th>Instrument</th><th>Type</th><th>Rating</th><th>ISIN</th><th style="text-align:right">Invested</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${r.name}</td><td><span style="font-size:9px;color:var(--accent);">${r.type}</span></td><td><span class="rating-badge ${getRatingClass(r.rating)}">${r.rating}</span></td><td style="font-family:'DM Mono',monospace;font-size:10px;">${r.isin}</td><td style="text-align:right;color:var(--accent);">${fmtCcy(r.inv)}</td></tr>`).join('')}
+        <tr style="border-top:2px solid var(--border);font-weight:600;"><td colspan="4">Total</td><td style="text-align:right;color:var(--accent);">${fmtCcy(rows.reduce((a,r)=>a+r.inv,0))}</td></tr>
+      </tbody></table>`;
+      break;
+    }
+    case 'outstanding': {
+      title = '📈 Outstanding Principal — By Instrument';
+      const rows = instruments.map(ins => {
+        const inv = ins.cashflows.filter(cf => (cf.principal||0) < 0).reduce((a,cf) => a + Math.abs(cf.principal||0), 0);
+        const rep = ins.cashflows.filter(cf => cf.date <= today.toISOString().slice(0,10) && (cf.principal||0) > 0).reduce((a,cf) => a + (cf.principal||0), 0);
+        const out = Math.max(0, inv - rep);
+        return { name: ins.name, type: ins.type, inv, rep, out, rating: ins.creditRating?.rating||'—' };
+      }).filter(r => r.out > 0).sort((a,b) => b.out - a.out);
+      html = `<table class="drill-table"><thead><tr><th>Instrument</th><th>Type</th><th>Rating</th><th style="text-align:right">Invested</th><th style="text-align:right">Repaid</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${r.name}</td><td style="font-size:9px;color:var(--accent);">${r.type}</td><td><span class="rating-badge ${getRatingClass(r.rating)}">${r.rating}</span></td><td style="text-align:right;">${fmtCcy(r.inv)}</td><td style="text-align:right;color:var(--red);">-${fmtCcy(r.rep)}</td><td style="text-align:right;color:var(--green);">${fmtCcy(r.out)}</td></tr>`).join('')}
+        <tr style="border-top:2px solid var(--border);font-weight:600;"><td colspan="5">Total Outstanding</td><td style="text-align:right;color:var(--green);">${fmtCcy(rows.reduce((a,r)=>a+r.out,0))}</td></tr>
+      </tbody></table>`;
+      break;
+    }
+    case 'upcoming': {
+      title = `🔮 Upcoming Inflows — Next ${dU} Days`;
+      const items = [];
+      instruments.forEach(ins => {
+        ins.cashflows.forEach(cf => {
+          const d = new Date(cf.date);
+          if (d > today && d <= cutU) {
+            const tds = (cf.interest||0) > 0 ? (cf.interest||0) * (ins.tdsRate||0.1) : 0;
+            const net = (cf.principal||0) + (cf.interest||0) - tds;
+            if (net > 0) items.push({ date: cf.date, name: ins.name, principal: cf.principal||0, interest: cf.interest||0, tds, net });
+          }
+        });
+      });
+      items.sort((a,b) => a.date.localeCompare(b.date));
+      html = `<table class="drill-table"><thead><tr><th>Date</th><th>Instrument</th><th style="text-align:right">Principal</th><th style="text-align:right">Interest</th><th style="text-align:right">TDS</th><th style="text-align:right">Net Inflow</th></tr></thead><tbody>
+        ${items.map(r => `<tr><td class="date-col">${fmtDate(new Date(r.date))}</td><td>${r.name}</td><td style="text-align:right;color:var(--green);">${r.principal>0?fmtCcy(r.principal):'-'}</td><td style="text-align:right;color:var(--green);">${r.interest>0?fmtCcy(r.interest):'-'}</td><td style="text-align:right;color:var(--red);">${r.tds>0?fmtCcy(r.tds):'-'}</td><td style="text-align:right;color:var(--accent2);font-weight:600;">${fmtCcy(r.net)}</td></tr>`).join('')}
+        ${items.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No inflows in this period</td></tr>':''}
+        ${items.length>0?`<tr style="border-top:2px solid var(--border);font-weight:600;"><td colspan="5">Total</td><td style="text-align:right;color:var(--accent2);">${fmtCcy(items.reduce((a,r)=>a+r.net,0))}</td></tr>`:''}
+      </tbody></table>`;
+      break;
+    }
+    case 'xirr': {
+      title = '⚡ XIRR — By Instrument';
+      const rows = instruments.map(ins => ({
+        name: ins.name, type: ins.type,
+        nominal: (ins.nominal*100).toFixed(2)+'%',
+        xirr:    (ins.xirr*100).toFixed(2)+'%',
+        rating:  ins.creditRating?.rating||'—',
+        agency:  ins.creditRating?.agency||'—'
+      })).sort((a,b) => parseFloat(b.xirr) - parseFloat(a.xirr));
+      html = `<table class="drill-table"><thead><tr><th>Instrument</th><th>Type</th><th>Rating</th><th style="text-align:right">Nominal %</th><th style="text-align:right">XIRR %</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${r.name}</td><td style="font-size:9px;color:var(--accent);">${r.type}</td><td><span class="rating-badge ${getRatingClass(r.rating)}" title="${r.agency}">${r.rating}</span></td><td style="text-align:right;">${r.nominal}</td><td style="text-align:right;color:var(--yellow);font-weight:600;">${r.xirr}</td></tr>`).join('')}
+      </tbody></table>`;
+      break;
+    }
+    case 'received': {
+      title = '✅ Received Returns — History';
+      const items = [];
+      instruments.forEach(ins => {
+        ins.cashflows.forEach(cf => {
+          if (cf.date <= today.toISOString().slice(0,10)) {
+            const tds = (cf.interest||0) > 0 ? (cf.interest||0) * (ins.tdsRate||0.1) : 0;
+            const net = (cf.principal||0) + (cf.interest||0) - tds;
+            if (net > 0) items.push({ date: cf.date, name: ins.name, net, principal: cf.principal||0, interest: cf.interest||0, tds });
+          }
+        });
+      });
+      items.sort((a,b) => b.date.localeCompare(a.date));
+      html = `<div style="max-height:320px;overflow-y:auto;"><table class="drill-table"><thead><tr><th>Date</th><th>Instrument</th><th style="text-align:right">Principal</th><th style="text-align:right">Interest</th><th style="text-align:right">Net</th></tr></thead><tbody>
+        ${items.slice(0,50).map(r=>`<tr><td class="date-col">${fmtDate(new Date(r.date))}</td><td>${r.name}</td><td style="text-align:right;color:var(--green);">${r.principal>0?fmtCcy(r.principal):'-'}</td><td style="text-align:right;color:var(--green);">${r.interest>0?fmtCcy(r.interest):'-'}</td><td style="text-align:right;font-weight:600;">${fmtCcy(r.net)}</td></tr>`).join('')}
+        <tr style="border-top:2px solid var(--border);font-weight:600;"><td colspan="4">Total Received</td><td style="text-align:right;color:var(--green);">${fmtCcy(items.reduce((a,r)=>a+r.net,0))}</td></tr>
+      </tbody></table></div>`;
+      break;
+    }
+    case 'idle': {
+      title = '🔄 Not Reinvested — Idle Capital';
+      const items = [];
+      instruments.forEach(ins => {
+        let running = 0;
+        ins.cashflows.filter(cf => cf.date <= today.toISOString().slice(0,10)).forEach(cf => {
+          const tds = (cf.interest||0) > 0 ? (cf.interest||0) * (ins.tdsRate||0.1) : 0;
+          running += (cf.principal||0) + (cf.interest||0) - tds;
+        });
+        if (running > 0) items.push({ name: ins.name, type: ins.type, idle: running });
+      });
+      items.sort((a,b) => b.idle - a.idle);
+      html = `<p style="font-size:11px;color:var(--muted);margin-bottom:12px;">Cash received from matured/paid cashflows that has not been reinvested yet.</p>
+        <table class="drill-table"><thead><tr><th>Instrument</th><th>Type</th><th style="text-align:right">Idle Capital</th></tr></thead><tbody>
+        ${items.map(r=>`<tr><td>${r.name}</td><td style="font-size:9px;color:var(--accent);">${r.type}</td><td style="text-align:right;color:var(--red);">${fmtCcy(r.idle)}</td></tr>`).join('')}
+        <tr style="border-top:2px solid var(--border);font-weight:600;"><td colspan="2">Total Idle</td><td style="text-align:right;color:var(--red);">${fmtCcy(items.reduce((a,r)=>a+r.idle,0))}</td></tr>
+      </tbody></table>`;
+      break;
+    }
+  }
+
+  document.getElementById('drill-title').textContent = title;
+  document.getElementById('drill-content').innerHTML = html;
+  document.getElementById('drill-modal').classList.add('open');
+}
+
+document.getElementById('drill-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('drill-modal');
+});
+
+// ===================== PRESENT VALUE / YTM =====================
+let pvInstrumentId = null;
+
+function openPVModal(insId) {
+  pvInstrumentId = insId;
+  const ins = instruments.find(i => i.id === insId);
+  if (!ins) return;
+  document.getElementById('pv-modal-title').textContent = `📐 ${ins.name} — Present Value & YTM`;
+  document.getElementById('pv-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('pv-market-price').value = '';
+  document.getElementById('pv-discount').value = '12';
+  document.getElementById('pv-modal').classList.add('open');
+  calcPV();
+}
+
+function calcPV() {
+  const ins = pvInstrumentId ? instruments.find(i => i.id === pvInstrumentId) : null;
+  if (!ins) return;
+
+  const discountRate  = (parseFloat(document.getElementById('pv-discount').value) || 12) / 100;
+  const valuationDate = document.getElementById('pv-date').value;
+  const marketPrice   = parseFloat(document.getElementById('pv-market-price').value) || 0;
+  if (!valuationDate) return;
+
+  const valD   = new Date(valuationDate);
+  const future = ins.cashflows.filter(cf => cf.date > valuationDate && ((cf.principal||0) > 0 || (cf.interest||0) > 0));
+
+  if (!future.length) {
+    document.getElementById('pv-result').textContent = '—';
+    document.getElementById('pv-ytm').textContent    = 'No future cashflows';
+    return;
+  }
+
+  // Present Value (DCF)
+  let pv = 0;
+  let weightedTime = 0;
+  future.forEach(cf => {
+    const d    = new Date(cf.date);
+    const yrs  = (d - valD) / (365.25 * 86400000);
+    const cf_  = (cf.principal||0) + (cf.interest||0);
+    const disc = cf_ / Math.pow(1 + discountRate, yrs);
+    pv            += disc;
+    weightedTime  += disc * yrs;
+  });
+
+  // Duration (Macaulay)
+  const duration = pv > 0 ? weightedTime / pv : 0;
+  // Modified duration
+  const modDuration = duration / (1 + discountRate);
+
+  // Accrued interest (last paid coupon to valuation date)
+  const past = ins.cashflows.filter(cf => cf.date <= valuationDate && (cf.interest||0) > 0);
+  let accrued = 0;
+  if (past.length > 0) {
+    const lastPaid = new Date(past[past.length-1].date);
+    // Find next coupon
+    const next = ins.cashflows.find(cf => cf.date > valuationDate && (cf.interest||0) > 0);
+    if (next) {
+      const nextD   = new Date(next.date);
+      const period  = (nextD - lastPaid) / 86400000;
+      const elapsed = (valD - lastPaid) / 86400000;
+      accrued = period > 0 ? (next.interest || 0) * (elapsed / period) : 0;
+    }
+  }
+
+  const cleanPrice = pv - accrued;
+
+  // YTM — Newton-Raphson iteration
+  let ytm = discountRate;
+  for (let iter = 0; iter < 100; iter++) {
+    let f  = 0, df = 0;
+    const price = marketPrice > 0 ? marketPrice * (ins.units || 1) : pv;
+    future.forEach(cf => {
+      const d   = new Date(cf.date);
+      const yrs = (d - valD) / (365.25 * 86400000);
+      const cf_ = (cf.principal||0) + (cf.interest||0);
+      f  += cf_ / Math.pow(1 + ytm, yrs);
+      df -= yrs * cf_ / Math.pow(1 + ytm, yrs + 1);
+    });
+    f -= price;
+    if (Math.abs(df) < 1e-10) break;
+    const delta = f / df;
+    ytm -= delta;
+    if (Math.abs(delta) < 1e-8) break;
+  }
+
+  const fmt2 = n => '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  document.getElementById('pv-result').textContent     = fmt2(pv);
+  document.getElementById('pv-ytm').textContent        = (ytm * 100).toFixed(4) + '%';
+  document.getElementById('pv-duration').textContent   = duration.toFixed(3) + ' yrs';
+  document.getElementById('pv-mod-duration').textContent = modDuration.toFixed(3);
+  document.getElementById('pv-accrued').textContent    = fmt2(accrued);
+  document.getElementById('pv-clean').textContent      = fmt2(cleanPrice);
+  document.getElementById('pv-cashflow-count').textContent =
+    `Based on ${future.length} future cashflow${future.length!==1?'s':''} · Valuation date: ${valuationDate}${marketPrice>0?' · Market price used for YTM: ₹'+marketPrice.toLocaleString('en-IN'):''}`;
+}
+
+document.getElementById('pv-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('pv-modal');
+});
+
+// ===================== ISIN AUTO-LOOKUP (BSE) =====================
+let isinLookupData = null;
+
+async function lookupISIN() {
+  const isin = (document.getElementById('isin-input').value || (pendingISINs[0]||'')).trim().toUpperCase();
+  if (!isin || isin.length < 12) {
+    toast('Enter an ISIN first (12 characters starting with IN)', 'warn'); return;
+  }
+
+  const resultEl = document.getElementById('isin-lookup-result');
+  const fieldsEl = document.getElementById('isin-lookup-fields');
+  resultEl.classList.add('visible');
+  fieldsEl.innerHTML = '<div style="color:var(--muted);font-size:11px;">🔍 Fetching from BSE…</div>';
+
+  try {
+    // BSE internal bond search endpoint — works via Supabase Edge Function proxy to avoid CORS
+    // Fallback: try direct fetch (works in some environments)
+    const bseUrl = `https://api.bseindia.com/BseIndiaAPI/api/getSecMaster/w?Segment=D&ISIN=${isin}`;
+
+    let data = null;
+
+    // Try Supabase Edge Function proxy first
+    if (typeof _sb !== 'undefined') {
+      try {
+        const { data: fnData, error } = await _sb.functions.invoke('isin-lookup', {
+          body: { isin }
+        });
+        if (!error && fnData) data = fnData;
+      } catch(e) { /* proxy not deployed — fall through */ }
+    }
+
+    // Fallback: try direct fetch
+    if (!data) {
+      const res = await fetch(bseUrl, {
+        headers: { 'Referer': 'https://www.bseindia.com' }
+      });
+      if (res.ok) data = await res.json();
+    }
+
+    if (!data || (Array.isArray(data) && !data.length)) {
+      throw new Error('No data found for this ISIN on BSE');
+    }
+
+    const d = Array.isArray(data) ? data[0] : data;
+    isinLookupData = d;
+
+    // Display fetched fields
+    const fields = [
+      ['Issuer Name',    d.Issuer_Name   || d.issuerName   || d.COMPANY_NAME || '—'],
+      ['Coupon Rate',    d.Coupon_Rate   || d.couponRate   || d.COUPON       || '—'],
+      ['Maturity Date',  d.Maturity_Date || d.maturityDate || d.MATURITY_DT  || '—'],
+      ['Face Value',     d.Face_Value    || d.faceValue    || d.FACE_VALUE   || '—'],
+      ['Credit Rating',  d.Credit_Rating || d.creditRating || d.RATING       || '—'],
+      ['Frequency',      d.Frequency     || d.frequency    || '—'],
+      ['Issue Date',     d.Issue_Date    || d.issueDate    || '—'],
+    ];
+    fieldsEl.innerHTML = fields.map(([k,v]) =>
+      `<div class="isin-lookup-field"><span class="k">${k}</span><span class="v">${v}</span></div>`
+    ).join('');
+
+  } catch(err) {
+    // BSE direct call likely blocked by CORS from browser
+    // Show helpful message with manual registry links
+    isinLookupData = null;
+    fieldsEl.innerHTML = `
+      <div style="color:var(--yellow);font-size:11px;margin-bottom:8px;">⚠️ Direct BSE fetch blocked (CORS restriction in browser)</div>
+      <div style="color:var(--muted);font-size:11px;line-height:1.6;">
+        This is a browser security limitation — NSE, BSE, NSDL and CDSL all block direct API calls from web apps.
+        <br><br>
+        <strong style="color:var(--text);">Options to auto-populate:</strong><br>
+        1. Open the registry links below → copy the cashflow table → use <strong>📋 Paste from Registry</strong><br>
+        2. Download the bond's Excel/PDF from the registry → use <strong>📂 Upload File</strong><br>
+        3. We can set up a Supabase Edge Function proxy (one-time setup) — say <strong>"set up ISIN proxy"</strong> to activate this.
+      </div>`;
+    document.querySelector('#isin-lookup-result button').style.display = 'none';
+  }
+}
+
+function applyISINLookup() {
+  if (!isinLookupData) return;
+  const d = isinLookupData;
+  const name    = d.Issuer_Name || d.issuerName || d.COMPANY_NAME;
+  const coupon  = d.Coupon_Rate || d.couponRate || d.COUPON;
+  const matDate = d.Maturity_Date || d.maturityDate || d.MATURITY_DT;
+  const fv      = d.Face_Value  || d.faceValue  || d.FACE_VALUE;
+  const rating  = d.Credit_Rating || d.creditRating || d.RATING;
+
+  if (name)    document.getElementById('f-name').value      = name;
+  if (coupon)  document.getElementById('f-nominal').value   = parseFloat(coupon).toFixed(4);
+  if (fv)      document.getElementById('f-facevalue').value = parseFloat(fv);
+  if (matDate) document.getElementById('ag-end').value      = matDate.slice(0,10);
+  if (rating)  document.getElementById('f-rating').value    = rating.toUpperCase();
+
+  document.getElementById('isin-lookup-result').classList.remove('visible');
+  toast('Bond details applied ✓', 'success');
+}
+
 
 
 // ===================== THEME TOGGLE =====================
