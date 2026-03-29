@@ -607,10 +607,10 @@
   <!-- TABS -->
   <div class="tabs animate-fade-up">
     <button class="tab-btn" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
-    <button class="tab-btn active" onclick="switchTab('overall',this)">Overall</button>
-    <button class="tab-btn" onclick="switchTab('individual',this)">By Instrument</button>
-    <button class="tab-btn" onclick="switchTab('upcoming',this)">Upcoming Only</button>
-    <button class="tab-btn" onclick="switchTab('past',this)">Past Only</button>
+    <button class="tab-btn" onclick="switchTab('overall',this)">📋 Overall Summary</button>
+    <button class="tab-btn active" onclick="switchTab('individual',this)">📑 By Instrument</button>
+    <button class="tab-btn" onclick="switchTab('upcoming',this)">⏰ Upcoming</button>
+    <button class="tab-btn" onclick="switchTab('past',this)">✅ Past</button>
   </div>
 
   <!-- METRICS -->
@@ -652,8 +652,8 @@
         <input type="number" id="f-nominal" placeholder="16.7948" step="0.0001">
       </div>
       <div class="form-field">
-        <label>XIRR % (annual)</label>
-        <input type="number" id="f-xirr" placeholder="17.5" step="0.0001">
+        <label>XIRR % (annual) <span style="color:var(--accent2);font-size:9px;">auto-calculated on save</span></label>
+        <input type="number" id="f-xirr" placeholder="Auto-calc from cashflows" step="0.0001">
       </div>
     </div>
     <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
@@ -682,7 +682,15 @@
     <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
       <div class="form-field">
         <label>Purchase Price per Unit (₹) <span style="color:var(--accent2);font-size:9px;">for PV/YTM</span></label>
-        <input type="number" id="f-purchase-price" step="0.01" placeholder="e.g. 980 (leave blank if at face value)">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="f-purchase-price" step="0.01" placeholder="e.g. 980 or auto-calc →" style="flex:1;" oninput="calcDirtyPrice()">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="autocalcPurchasePrice()" title="Calculate PV from cashflows at the yield below" style="white-space:nowrap;font-size:9px;color:var(--accent2);border-color:rgba(91,141,238,0.3);">📐 Calc PV</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+          <span style="font-size:9px;color:var(--muted);">At yield %:</span>
+          <input type="number" id="f-pv-yield" value="12" step="0.01" style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;outline:none;">
+          <span style="font-size:9px;color:var(--muted);" id="f-pv-calc-result"></span>
+        </div>
       </div>
       <div class="form-field">
         <label>Purchase Date</label>
@@ -1377,7 +1385,7 @@ or
 
 <script>
 // ===================== STATE =====================
-let currentTab = 'overall';
+let currentTab = 'individual';
 let instruments = [];
 
 // Generate RFC4122 UUID for instrument IDs
@@ -1586,38 +1594,50 @@ function renderOverall(tab) {
   let rows = mergeRows(instruments.map(ins => ({ rows: computeRows(ins) })));
   if (tab === 'upcoming') rows = rows.filter(r => r.date > today);
   else if (tab === 'past') rows = rows.filter(r => r.date <= today);
-  document.getElementById('table-container').innerHTML = `
-    <div class="table-wrap"><table>
-      <thead>
-        <tr>
-          <th class="col-date" rowspan="2">Date</th>
-          <th colspan="4" style="border-right:2px solid var(--border);">Overall Portfolio</th>
-          <th colspan="2" style="color:var(--accent2);border-right:2px solid var(--border);">Per Unit</th>
-          <th colspan="2" style="color:var(--yellow);">Per ₹100 Face Value</th>
-        </tr>
-        <tr>
-          <th>Principal</th><th>Interest</th><th>Cashflows</th><th style="border-right:2px solid var(--border);">After TDS</th>
-          <th style="color:var(--accent2);">Principal</th><th style="color:var(--accent2);border-right:2px solid var(--border);">Interest</th>
-          <th style="color:var(--yellow);">Principal</th><th style="color:var(--yellow);">Interest</th>
-        </tr>
-      </thead>
-      <tbody>${rows.map((r,ri) => {
-        // For per-unit: find instruments contributing to this row
-        const contribs = instruments.filter(ins => ins.cashflows.some(cf => cf.date === r.date));
-        const totalUnits = contribs.length ? contribs.reduce((a,i)=>a+(i.units||1),0) : instruments.reduce((a,i)=>a+(i.units||1),0);
-        const totalFace  = contribs.length ? contribs.reduce((a,i)=>a+((i.faceValue||1000)*(i.units||1)),0) : instruments.reduce((a,i)=>a+((i.faceValue||1000)*(i.units||1)),0);
-        return `<tr class="${r.date<=today?'row-past':''}" id="tr-overall-${ri}">
-        <td class="date-col">${fmtDate(r.date)}</td>
-        <td>${fmtNum(r.total_principal)}</td>
-        <td>${fmtNum(r.total_interest)}</td>
-        <td>${fmtNum(r.total_cashflow)}</td>
-        <td style="border-right:2px solid var(--border);">${fmtNum(r.total_cfAfterTds)}</td>
-        <td style="text-align:right;font-size:10px;color:var(--accent2);">${fmtPerUnit(r.total_principal,totalUnits)}</td>
-        <td style="text-align:right;font-size:10px;color:var(--accent2);border-right:2px solid var(--border);">${fmtPerUnit(r.total_interest,totalUnits)}</td>
-        <td style="text-align:right;font-size:10px;color:var(--yellow);">${fmtPer100raw(r.total_principal,totalFace)}</td>
-        <td style="text-align:right;font-size:10px;color:var(--yellow);">${fmtPer100raw(r.total_interest,totalFace)}</td>
-      </tr>`;}).join('')}</tbody>
-    </table></div>`;
+
+  // Build a total face value for the portfolio
+  const portFace = instruments.reduce((a,i) => a + ((i.faceValue||1000)*(i.units||1)), 0) || 1000;
+  const portUnits = instruments.reduce((a,i) => a + (i.units||1), 0) || 1;
+
+  var tableRows = rows.map(function(r, ri) {
+    var dateStr   = fmtDate(r.date);
+    var rowClass  = r.date <= today ? 'row-past' : '';
+    // Find which instruments contribute on this date
+    var contribs  = instruments.filter(function(ins) {
+      return ins.cashflows.some(function(cf) { return cf.date === r.date.toISOString().slice(0,10); });
+    });
+    var cFace  = contribs.length ? contribs.reduce(function(a,i){return a+((i.faceValue||1000)*(i.units||1));},0) : portFace;
+    var cUnits = contribs.length ? contribs.reduce(function(a,i){return a+(i.units||1);},0) : portUnits;
+    return '<tr class="' + rowClass + '" id="tr-overall-' + ri + '">'
+      + '<td class="date-col">' + dateStr + '</td>'
+      + '<td>' + fmtNum(r.total_principal) + '</td>'
+      + '<td>' + fmtNum(r.total_interest) + '</td>'
+      + '<td>' + fmtNum(r.total_cashflow) + '</td>'
+      + '<td style="border-right:2px solid var(--border);">' + fmtNum(r.total_cfAfterTds) + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">' + (r.total_principal!==0?fmtPerUnit(r.total_principal,cUnits):'–') + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--accent2);border-right:2px solid var(--border);">' + (r.total_interest!==0?fmtPerUnit(r.total_interest,cUnits):'–') + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">' + (r.total_principal!==0?fmtPer100raw(r.total_principal,cFace):'–') + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">' + (r.total_interest!==0?fmtPer100raw(r.total_interest,cFace):'–') + '</td>'
+      + '</tr>';
+  }).join('');
+
+  document.getElementById('table-container').innerHTML =
+    '<div class="table-wrap"><table>'
+    + '<thead>'
+    + '<tr>'
+    + '<th class="col-date" rowspan="2">Date</th>'
+    + '<th colspan="4" style="border-right:2px solid var(--border);">Overall Portfolio</th>'
+    + '<th colspan="2" style="color:var(--accent2);border-right:2px solid var(--border);">Per Unit</th>'
+    + '<th colspan="2" style="color:var(--yellow);">Per ₹100 Face Value</th>'
+    + '</tr>'
+    + '<tr>'
+    + '<th>Principal</th><th>Interest</th><th>Cashflows</th><th style="border-right:2px solid var(--border);">After TDS</th>'
+    + '<th style="color:var(--accent2);">Principal</th><th style="color:var(--accent2);border-right:2px solid var(--border);">Interest</th>'
+    + '<th style="color:var(--yellow);">Principal</th><th style="color:var(--yellow);">Interest</th>'
+    + '</tr>'
+    + '</thead>'
+    + '<tbody>' + tableRows + '</tbody>'
+    + '</table></div>';
 }
 
 function renderIndividual() {
@@ -1654,36 +1674,58 @@ function renderIndividual() {
     </tr>`;
   }).join('');
 
-  document.getElementById('table-container').innerHTML = `
-    <details open>
-      <summary style="cursor:pointer;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:11px;color:var(--muted);margin-bottom:12px;list-style:none;display:flex;align-items:center;gap:8px;">
-        <span style="font-size:9px;">▾</span> Cross-Instrument Date View
-      </summary>
-      <div class="table-wrap" style="overflow-x:auto;max-height:320px;">
-        <table>
-          <thead><tr><th class="col-date" rowspan="2">Date</th>${instHeaders}</tr><tr>${subH}</tr></thead>
-          <tbody>${bodyRows}</tbody>
-        </table>
-      </div>
-    </details>
-    <div style="margin-top:12px;">
-      ${instruments.map(ins => `
-        <div style="margin-bottom:18px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-          <div style="background:var(--surface2);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <div style="font-family:'Playfair Display',serif;font-size:14px;color:var(--accent);">${ins.name}</div>
-            ${ins.isins&&ins.isins.length?`<span style="font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;">${ins.isins.join(', ')}</span>`:''}
-            <span style="font-size:9px;background:rgba(201,169,110,0.1);color:var(--accent);padding:2px 8px;border-radius:4px;">${ins.type}</span>
-            <span style="font-size:9px;color:var(--muted);">${ins.units||1} units × ₹${(ins.faceValue||1000).toLocaleString('en-IN')} = ₹${((ins.units||1)*(ins.faceValue||1000)).toLocaleString('en-IN')}</span>
-            ${ins.purchasePrice?`<span style="font-size:9px;color:var(--accent2);">Purchased @ ₹${ins.purchasePrice.toLocaleString('en-IN')}/unit</span>`:''}
-            <div style="margin-left:auto;display:flex;gap:6px;">
-              <button onclick="openAddModal('${ins.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:3px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">✎ Edit</button>
-              <button onclick="openPVModal('${ins.id}')" style="background:none;border:1px solid rgba(91,141,238,0.3);color:var(--accent2);border-radius:4px;padding:3px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">📐 PV/YTM</button>
-              <button onclick="addNewCashflowRow('${ins.id}')" style="background:none;border:1px solid rgba(74,222,128,0.3);color:var(--green);border-radius:4px;padding:3px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">+ Row</button>
-            </div>
-          </div>
-          <div id="sched-${ins.id}" style="padding:0;">${renderInstrumentCashflowTable(ins)}</div>
-        </div>`).join('')}
-    </div>`;
+  // Build instrument panels using string concatenation (no nested template literals)
+  var instrumentPanels = instruments.map(function(ins) {
+    var u = ins.units || 1;
+    var fv = ins.faceValue || 1000;
+    var pp = ins.purchasePrice || 0;
+    var ai = ins.accruedPaid || 0;
+    var dirtyTotal = pp > 0 ? (pp * u + ai) : 0;
+    var xirrPct = ins.xirr > 0 ? ' · XIRR: <strong style="color:var(--green);">'+( ins.xirr*100).toFixed(2)+'%</strong>' : '';
+    var ppInfo = pp > 0
+      ? ' · <span style="color:var(--accent2);">Purchase: ₹'+pp.toLocaleString('en-IN',{maximumFractionDigits:2})+'/unit'
+        + ' | Dirty: ₹'+dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:0})+' total'
+        + ' | ₹'+((dirtyTotal/((fv*u)))*100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'/₹100</span>'
+      : '';
+    var isinSpan = ins.isins && ins.isins.length
+      ? '<span style="font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;">'+ins.isins.join(', ')+'</span>' : '';
+    var ratingBadge = ins.creditRating && ins.creditRating.rating
+      ? '<span class="rating-badge '+getRatingClass(ins.creditRating.rating)+'">'+ins.creditRating.rating+'</span>' : '';
+
+    return '<div style="margin-bottom:20px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">'
+      + '<div style="background:var(--surface2);padding:12px 16px;">'
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
+      + '<div>'
+      + '<span style="font-family:'Playfair Display',serif;font-size:15px;color:var(--accent);">'+ins.name+'</span>'
+      + ' ' + ratingBadge + ' ' + isinSpan
+      + '<div style="margin-top:4px;font-size:10px;color:var(--muted);">'
+      + ins.type + ' &nbsp;·&nbsp; '
+      + u + ' units × ₹'+fv.toLocaleString('en-IN')+' = ₹'+(u*fv).toLocaleString('en-IN')+' face'
+      + (ins.nominal > 0 ? ' &nbsp;·&nbsp; Nominal: <strong>'+(ins.nominal*100).toFixed(4)+'%</strong>' : '')
+      + xirrPct
+      + ppInfo
+      + '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;flex-shrink:0;">'
+      + '<button onclick="openAddModal(''+ins.id+'')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">✎ Edit</button>'
+      + '<button onclick="openPVModal(''+ins.id+'')" style="background:none;border:1px solid rgba(91,141,238,0.3);color:var(--accent2);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">📐 PV/YTM/XIRR</button>'
+      + '<button onclick="addNewCashflowRow(''+ins.id+'')" style="background:none;border:1px solid rgba(74,222,128,0.3);color:var(--green);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">+ Add Row</button>'
+      + '</div>'
+      + '</div>'
+      + '</div>'
+      + '<div id="sched-'+ins.id+'" style="padding:0;">'+renderInstrumentCashflowTable(ins)+'</div>'
+      + '</div>';
+  }).join('');
+
+  var crossTable = '<details style="margin-bottom:16px;">'
+    + '<summary style="cursor:pointer;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:11px;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px;">'
+    + '<span style="font-size:9px;">▸</span> Cross-Instrument Date View (click to expand)'
+    + '</summary>'
+    + '<div class="table-wrap" style="overflow-x:auto;max-height:280px;margin-top:8px;">'
+    + '<table><thead><tr><th class="col-date" rowspan="2">Date</th>'+instHeaders+'</tr><tr>'+subH+'</tr></thead>'
+    + '<tbody>'+bodyRows+'</tbody></table></div></details>';
+
+  document.getElementById('table-container').innerHTML = instrumentPanels + crossTable;
 }
 
 // ===================== REMINDERS =====================
@@ -2216,16 +2258,33 @@ function parsePastedData() {
 
 
 // ===================== CASHFLOW ROWS =====================
+function autoCalcRecordDate(id) {
+  const payDate = document.getElementById('cf-date-' + id)?.value;
+  const rdEl    = document.getElementById('cf-recdate-' + id);
+  if (!payDate || !rdEl || rdEl.value) return; // don't overwrite if already set
+  const d = new Date(payDate);
+  d.setDate(d.getDate() - 15);
+  rdEl.value = d.toISOString().slice(0,10);
+}
+
 function addCashflowRow(prefill) {
   const id = cashflowRowCount++;
   const wrap = document.getElementById('cashflow-rows');
   const div = document.createElement('div');
-  div.className = 'form-row quad';
+  div.className = 'form-row';
+  div.style.gridTemplateColumns = '1fr 1fr 1fr 1fr 1fr auto';
   div.id = `cfrow-${id}`;
+  const prefillDate    = prefill ? new Date(prefill.date).toISOString().slice(0,10) : '';
+  const prefillRD      = prefill ? (prefill.recordDate||'') : '';
+  const prefillP       = prefill ? (prefill.principal||0) : '';
+  const prefillI       = prefill ? (prefill.interest||0) : '';
+  const prefillNotes   = prefill ? (prefill.notes||'') : '';
   div.innerHTML = `
-    <div class="form-field"><label>Date</label><input type="date" id="cf-date-${id}" value="${prefill ? new Date(prefill.date).toISOString().slice(0,10) : ''}"></div>
-    <div class="form-field"><label>Principal (– = invest)</label><input type="number" id="cf-principal-${id}" placeholder="0" step="0.01" value="${prefill ? prefill.principal||0 : ''}"></div>
-    <div class="form-field"><label>Interest</label><input type="number" id="cf-interest-${id}" placeholder="0" step="0.01" value="${prefill ? prefill.interest||0 : ''}"></div>
+    <div class="form-field"><label>Payment Date *</label><input type="date" id="cf-date-${id}" value="${prefillDate}" oninput="autoCalcRecordDate(${id})"></div>
+    <div class="form-field"><label>Record Date <span style="color:var(--yellow);font-size:9px;">auto -15d</span></label><input type="date" id="cf-recdate-${id}" value="${prefillRD}"></div>
+    <div class="form-field"><label>Principal (– = invest)</label><input type="number" id="cf-principal-${id}" placeholder="0" step="0.01" value="${prefillP}"></div>
+    <div class="form-field"><label>Interest</label><input type="number" id="cf-interest-${id}" placeholder="0" step="0.01" value="${prefillI}"></div>
+    <div class="form-field"><label>Notes</label><input type="text" id="cf-notes-${id}" placeholder="optional" value="${prefillNotes}"></div>
     <div class="form-field" style="justify-content:flex-end;padding-top:16px;">
       <button class="btn btn-danger btn-sm" onclick="document.getElementById('cfrow-${id}').remove()">✕</button>
     </div>`;
@@ -2330,7 +2389,9 @@ function saveInstrument() {
       if (!dateEl) continue;
       const date = dateEl.value;
       if (!date) continue;
-      cashflows.push({ date, principal: parseFloat(document.getElementById(`cf-principal-${i}`).value)||0, interest: parseFloat(document.getElementById(`cf-interest-${i}`).value)||0 });
+      const recordDate = document.getElementById(`cf-recdate-${i}`)?.value || '';
+      const notes      = document.getElementById(`cf-notes-${i}`)?.value   || '';
+      cashflows.push({ date, principal: parseFloat(document.getElementById(`cf-principal-${i}`).value)||0, interest: parseFloat(document.getElementById(`cf-interest-${i}`).value)||0, recordDate, notes });
     }
   }
   if (!cashflows.length) { toast('Add at least one cashflow row or use auto-generate / paste', 'warn'); return; }
@@ -2347,14 +2408,47 @@ function saveInstrument() {
   const purchasePrice = parseFloat(document.getElementById('f-purchase-price').value) || 0;
   const purchaseDate  = document.getElementById('f-purchase-date').value || '';
   const accruedPaid   = parseFloat(document.getElementById('f-accrued-paid').value) || 0;
-  const ins = { id: editingId || genUUID(), name, isins: [...pendingISINs], nominal, xirr, tdsRate, type, units, faceValue, purchasePrice, purchaseDate, accruedPaid, cashflows, creditRating };
+  // Auto-calculate XIRR from cashflows (Newton-Raphson)
+  let computedXirr = xirr; // use manual entry as fallback
+  if (cashflows.length >= 2) {
+    const hasCost = cashflows.some(cf => (cf.principal||0) < 0);
+    if (hasCost) {
+      const xirrCFs = cashflows.map(cf => ({
+        date: cf.date,
+        amt: (cf.principal||0) + (cf.interest||0) - ((cf.interest||0)>0?(cf.interest||0)*(tdsRate):0)
+      })).filter(cf => cf.amt !== 0);
+      if (xirrCFs.length >= 2) {
+        const d0 = new Date(xirrCFs[0].date);
+        let r = 0.12;
+        for (let iter = 0; iter < 200; iter++) {
+          let f = 0, df = 0;
+          xirrCFs.forEach(cf => {
+            const yrs = (new Date(cf.date) - d0) / (365.25 * 86400000);
+            f  += cf.amt / Math.pow(1+r, yrs);
+            df -= yrs * cf.amt / Math.pow(1+r, yrs+1);
+          });
+          if (Math.abs(df) < 1e-12) break;
+          const delta = f / df; r -= delta;
+          if (Math.abs(delta) < 1e-9) break;
+        }
+        if (r > -1 && r < 10) computedXirr = r; // sanity check
+      }
+    }
+  }
+
+  const ins = { id: editingId || genUUID(), name, isins: [...pendingISINs], nominal, xirr: computedXirr, tdsRate, type, units, faceValue, purchasePrice, purchaseDate, accruedPaid, cashflows, creditRating };
   if (editingId) instruments = instruments.map(i => i.id === editingId ? ins : i);
   else instruments.push(ins);
 
   closeModal('add-modal');
+  // Show the computed XIRR to user
+  if (computedXirr && computedXirr !== xirr) {
+    toast((editingId ? '"'+name+'" updated' : '"'+name+'" added') + ' · XIRR auto-calculated: ' + (computedXirr*100).toFixed(4) + '%', 'success');
+  } else {
+    toast(editingId ? '"'+name+'" updated' : '"'+name+'" added', 'success');
+  }
   refresh();
   persistInstruments();
-  toast(editingId ? `"${name}" updated` : `"${name}" added`, 'success');
 }
 
 // ===================== ACTIONS =====================
@@ -3604,6 +3698,64 @@ function parseFlexDate(str) {
 
 
 // ── Dirty price calculator (runs when units/purchase price/accrued change) ──
+function autocalcPurchasePrice() {
+  // Calculate PV of future cashflows at the given yield, per unit
+  const yield_ = (parseFloat(document.getElementById('f-pv-yield')?.value) || 12) / 100;
+  const units   = parseInt(document.getElementById('f-units')?.value) || 1;
+  const resultEl = document.getElementById('f-pv-calc-result');
+
+  // Collect cashflows from the form
+  const cfs = [];
+  for (let i = 0; i < cashflowRowCount; i++) {
+    const dateEl = document.getElementById('cf-date-' + i);
+    if (!dateEl || !dateEl.value) continue;
+    const p = parseFloat(document.getElementById('cf-principal-' + i)?.value) || 0;
+    const int = parseFloat(document.getElementById('cf-interest-' + i)?.value) || 0;
+    if (p > 0 || int > 0) cfs.push({ date: dateEl.value, p, int });
+  }
+  // Also check auto-generated cashflows
+  if (!cfs.length && autoGeneratedCFs) {
+    autoGeneratedCFs.filter(cf => (cf.principal||0) > 0 || (cf.interest||0) > 0)
+      .forEach(cf => cfs.push({ date: cf.date, p: cf.principal||0, int: cf.interest||0 }));
+  }
+
+  if (!cfs.length) {
+    if (resultEl) resultEl.textContent = 'Add cashflows first';
+    return;
+  }
+
+  // Find the valuation date (investment date or today)
+  const invCF = (() => {
+    for (let i = 0; i < cashflowRowCount; i++) {
+      const dateEl = document.getElementById('cf-date-' + i);
+      const p = parseFloat(document.getElementById('cf-principal-' + i)?.value) || 0;
+      if (dateEl && dateEl.value && p < 0) return dateEl.value;
+    }
+    return new Date().toISOString().slice(0,10);
+  })();
+  const valD = new Date(invCF);
+
+  // DCF
+  let pv = 0;
+  cfs.forEach(cf => {
+    const d   = new Date(cf.date);
+    const yrs = (d - valD) / (365.25 * 86400000);
+    if (yrs <= 0) return;
+    const amt  = cf.p + cf.int;
+    pv += amt / Math.pow(1 + yield_, yrs);
+  });
+
+  if (pv <= 0) {
+    if (resultEl) resultEl.textContent = 'Could not calculate';
+    return;
+  }
+
+  const pvPerUnit = pv / units;
+  document.getElementById('f-purchase-price').value = pvPerUnit.toFixed(2);
+  if (resultEl) resultEl.textContent = '= ₹' + pvPerUnit.toLocaleString('en-IN',{maximumFractionDigits:2}) + '/unit (₹' + pv.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' total)';
+  calcDirtyPrice();
+}
+
 function calcDirtyPrice() {
   const units    = parseInt(document.getElementById('f-units')?.value) || 1;
   const pp       = parseFloat(document.getElementById('f-purchase-price')?.value) || 0;
