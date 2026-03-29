@@ -3056,96 +3056,182 @@ let isinLookupData = null;
 async function lookupISIN() {
   const isin = (document.getElementById('isin-input').value || (pendingISINs[0]||'')).trim().toUpperCase();
   if (!isin || isin.length < 12) {
-    toast('Enter an ISIN first (12 characters starting with IN)', 'warn'); return;
+    toast('Enter a valid ISIN first (12 characters, starts with IN)', 'warn'); return;
   }
 
   const resultEl = document.getElementById('isin-lookup-result');
   const fieldsEl = document.getElementById('isin-lookup-fields');
+  const applyBtn = document.querySelector('#isin-lookup-result button');
   resultEl.classList.add('visible');
-  fieldsEl.innerHTML = '<div style="color:var(--muted);font-size:11px;">🔍 Fetching from BSE…</div>';
+  if (applyBtn) applyBtn.style.display = 'none';
+  fieldsEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;">
+      <span style="animation:spin 1s linear infinite;display:inline-block;">⟳</span>
+      Querying BSE, NSE, NSDL, CDSL via proxy…
+    </div>
+    <div style="margin-top:8px;display:flex;gap:6px;" id="isin-source-badges">
+      <span id="src-bse"  style="font-size:9px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">BSE ⋯</span>
+      <span id="src-nse"  style="font-size:9px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">NSE ⋯</span>
+      <span id="src-nsdl" style="font-size:9px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">NSDL ⋯</span>
+      <span id="src-cdsl" style="font-size:9px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">CDSL ⋯</span>
+    </div>`;
+
+  isinLookupData = null;
 
   try {
-    // BSE internal bond search endpoint — works via Supabase Edge Function proxy to avoid CORS
-    // Fallback: try direct fetch (works in some environments)
-    const bseUrl = `https://api.bseindia.com/BseIndiaAPI/api/getSecMaster/w?Segment=D&ISIN=${isin}`;
+    // Call Supabase Edge Function proxy — handles BSE, NSE, NSDL, CDSL server-side
+    const { data: fnData, error } = await _sb.functions.invoke('isin-lookup', {
+      body: { isin, sources: ['BSE', 'NSE', 'NSDL', 'CDSL'] }
+    });
 
-    let data = null;
+    if (error) throw new Error(error.message || 'Edge function error');
+    if (!fnData || !fnData.best) throw new Error(fnData?.message || 'No data returned');
 
-    // Try Supabase Edge Function proxy first
-    if (typeof _sb !== 'undefined') {
-      try {
-        const { data: fnData, error } = await _sb.functions.invoke('isin-lookup', {
-          body: { isin }
-        });
-        if (!error && fnData) data = fnData;
-      } catch(e) { /* proxy not deployed — fall through */ }
-    }
+    const best = fnData.best;
+    const all  = fnData.all || {};
+    isinLookupData = best;
 
-    // Fallback: try direct fetch
-    if (!data) {
-      const res = await fetch(bseUrl, {
-        headers: { 'Referer': 'https://www.bseindia.com' }
-      });
-      if (res.ok) data = await res.json();
-    }
+    // Update source badges
+    ['BSE','NSE','NSDL','CDSL'].forEach(src => {
+      const el = document.getElementById('src-' + src.toLowerCase());
+      if (!el) return;
+      if (all[src]) {
+        el.style.background = 'rgba(74,222,128,0.12)';
+        el.style.color       = 'var(--green)';
+        el.style.borderColor = 'rgba(74,222,128,0.3)';
+        el.textContent       = src + ' ✓';
+      } else {
+        el.style.color       = 'var(--muted)';
+        el.textContent       = src + ' —';
+      }
+    });
 
-    if (!data || (Array.isArray(data) && !data.length)) {
-      throw new Error('No data found for this ISIN on BSE');
-    }
-
-    const d = Array.isArray(data) ? data[0] : data;
-    isinLookupData = d;
-
-    // Display fetched fields
+    // Render fields with source attribution
+    const fmtVal = v => v || '<span style="color:var(--border);">—</span>';
     const fields = [
-      ['Issuer Name',    d.Issuer_Name   || d.issuerName   || d.COMPANY_NAME || '—'],
-      ['Coupon Rate',    d.Coupon_Rate   || d.couponRate   || d.COUPON       || '—'],
-      ['Maturity Date',  d.Maturity_Date || d.maturityDate || d.MATURITY_DT  || '—'],
-      ['Face Value',     d.Face_Value    || d.faceValue    || d.FACE_VALUE   || '—'],
-      ['Credit Rating',  d.Credit_Rating || d.creditRating || d.RATING       || '—'],
-      ['Frequency',      d.Frequency     || d.frequency    || '—'],
-      ['Issue Date',     d.Issue_Date    || d.issueDate    || '—'],
-    ];
-    fieldsEl.innerHTML = fields.map(([k,v]) =>
-      `<div class="isin-lookup-field"><span class="k">${k}</span><span class="v">${v}</span></div>`
-    ).join('');
+      ['Issuer / Company',  best.issuerName],
+      ['Coupon Rate',       best.couponRate ? best.couponRate + '%' : null],
+      ['Maturity Date',     best.maturityDate],
+      ['Issue Date',        best.issueDate],
+      ['Face Value',        best.faceValue ? '₹' + best.faceValue : null],
+      ['Credit Rating',     best.creditRating],
+      ['Int. Frequency',    best.frequency],
+      ['Interest Type',     best.interestType],
+      ['Redemption Date',   best.redemptionDate],
+      ['Secured',           best.secured],
+    ].filter(([, v]) => v);
+
+    fieldsEl.innerHTML = `
+      <div style="font-size:10px;color:var(--green);font-weight:600;margin-bottom:6px;">
+        ✓ Data from ${best.source} · ${Object.keys(all).length} source${Object.keys(all).length!==1?'s':''} responded
+      </div>
+      ${fields.map(([k,v]) => `
+        <div class="isin-lookup-field">
+          <span class="k">${k}</span>
+          <span class="v">${fmtVal(v)}</span>
+        </div>`).join('')}
+      <div id="isin-source-badges" style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;">
+        ${['BSE','NSE','NSDL','CDSL'].map(src => `
+          <span style="font-size:9px;padding:2px 7px;border-radius:3px;
+            background:${all[src]?'rgba(74,222,128,0.12)':'var(--surface2)'};
+            color:${all[src]?'var(--green)':'var(--muted)'};
+            border:1px solid ${all[src]?'rgba(74,222,128,0.3)':'var(--border)'};">
+            ${src} ${all[src]?'✓':'—'}
+          </span>`).join('')}
+      </div>`;
+
+    if (applyBtn) applyBtn.style.display = 'inline-flex';
 
   } catch(err) {
-    // BSE direct call likely blocked by CORS from browser
-    // Show helpful message with manual registry links
     isinLookupData = null;
+    // Update badges to show error
+    ['BSE','NSE','NSDL','CDSL'].forEach(src => {
+      const el = document.getElementById('src-' + src.toLowerCase());
+      if (el) { el.style.color = 'var(--red)'; el.textContent = src + ' ✗'; }
+    });
+
+    const isDeployError = err.message?.includes('Edge function') || err.message?.includes('404') || err.message?.includes('not found');
     fieldsEl.innerHTML = `
-      <div style="color:var(--yellow);font-size:11px;margin-bottom:8px;">⚠️ Direct BSE fetch blocked (CORS restriction in browser)</div>
-      <div style="color:var(--muted);font-size:11px;line-height:1.6;">
-        This is a browser security limitation — NSE, BSE, NSDL and CDSL all block direct API calls from web apps.
-        <br><br>
-        <strong style="color:var(--text);">Options to auto-populate:</strong><br>
-        1. Open the registry links below → copy the cashflow table → use <strong>📋 Paste from Registry</strong><br>
-        2. Download the bond's Excel/PDF from the registry → use <strong>📂 Upload File</strong><br>
-        3. We can set up a Supabase Edge Function proxy (one-time setup) — say <strong>"set up ISIN proxy"</strong> to activate this.
+      <div style="color:var(--yellow);font-size:11px;font-weight:600;margin-bottom:8px;">
+        ${isDeployError ? '⚠️ Edge Function Not Deployed Yet' : '⚠️ ' + (err.message || 'Lookup failed')}
+      </div>
+      <div style="color:var(--muted);font-size:11px;line-height:1.7;">
+        ${isDeployError ? `
+          The <strong style="color:var(--text);">isin-lookup</strong> Edge Function needs to be deployed to your Supabase project first.
+          <br><br>
+          <strong style="color:var(--text);">To deploy it:</strong><br>
+          1. Install Supabase CLI: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;">npm install -g supabase</code><br>
+          2. Login: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;">supabase login</code><br>
+          3. Link project: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;">supabase link --project-ref kvhoptufeeodkdjrijcc</code><br>
+          4. Deploy: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;">supabase functions deploy isin-lookup</code><br><br>
+          The function code is in your downloaded <strong>supabase/functions/isin-lookup/index.ts</strong>
+        ` : `
+          Could not fetch ISIN details. Alternatives:<br>
+          1. Open the <strong>registry links</strong> below → paste the cashflow table<br>
+          2. Download Excel/PDF from registry → <strong>📂 Upload File</strong>
+        `}
       </div>`;
-    document.querySelector('#isin-lookup-result button').style.display = 'none';
   }
 }
 
 function applyISINLookup() {
   if (!isinLookupData) return;
   const d = isinLookupData;
-  const name    = d.Issuer_Name || d.issuerName || d.COMPANY_NAME;
-  const coupon  = d.Coupon_Rate || d.couponRate || d.COUPON;
-  const matDate = d.Maturity_Date || d.maturityDate || d.MATURITY_DT;
-  const fv      = d.Face_Value  || d.faceValue  || d.FACE_VALUE;
-  const rating  = d.Credit_Rating || d.creditRating || d.RATING;
 
-  if (name)    document.getElementById('f-name').value      = name;
-  if (coupon)  document.getElementById('f-nominal').value   = parseFloat(coupon).toFixed(4);
-  if (fv)      document.getElementById('f-facevalue').value = parseFloat(fv);
-  if (matDate) document.getElementById('ag-end').value      = matDate.slice(0,10);
-  if (rating)  document.getElementById('f-rating').value    = rating.toUpperCase();
+  if (d.issuerName)   document.getElementById('f-name').value      = d.issuerName;
+  if (d.couponRate) {
+    const rate = parseFloat(String(d.couponRate).replace('%',''));
+    if (!isNaN(rate)) document.getElementById('f-nominal').value   = rate.toFixed(4);
+  }
+  if (d.faceValue) {
+    const fv = parseFloat(String(d.faceValue).replace(/[₹,]/g,''));
+    if (!isNaN(fv)) document.getElementById('f-facevalue').value   = fv;
+  }
+  if (d.maturityDate) {
+    // Try to parse date into YYYY-MM-DD
+    const parsed = parseFlexDate(d.maturityDate);
+    if (parsed) document.getElementById('ag-end').value = parsed;
+  }
+  if (d.issueDate) {
+    const parsed = parseFlexDate(d.issueDate);
+    if (parsed) document.getElementById('ag-start').value = parsed;
+  }
+  if (d.creditRating) {
+    document.getElementById('f-rating').value = d.creditRating.toUpperCase();
+  }
+  if (d.frequency) {
+    // Map frequency text to select value
+    const fmap = { monthly:12, quarterly:4, 'half':2, 'semi':2, annual:1, yearly:1, bullet:0 };
+    const fkey = Object.keys(fmap).find(k => d.frequency.toLowerCase().includes(k));
+    if (fkey) {
+      const sel = document.getElementById('ag-int-freq');
+      if (sel) sel.value = String(fmap[fkey]);
+    }
+  }
 
   document.getElementById('isin-lookup-result').classList.remove('visible');
-  toast('Bond details applied ✓', 'success');
+  toast('Bond details applied from ' + (d.source || 'registry') + ' ✓', 'success');
 }
+
+function parseFlexDate(str) {
+  if (!str) return null;
+  str = String(str).trim();
+  // Try YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  // Try DD-MM-YYYY or DD/MM/YYYY
+  const m1 = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  // Try DD-Mon-YYYY (e.g. 16-Jan-2027)
+  const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+  const m2 = str.match(/^(\d{1,2})[\/\-]([A-Za-z]{3})[\/\-](\d{4})$/);
+  if (m2) {
+    const mo = months[m2[2].toLowerCase()];
+    if (mo) return `${m2[3]}-${mo}-${m2[1].padStart(2,'0')}`;
+  }
+  return null;
+}
+
+
 
 
 
