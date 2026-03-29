@@ -1536,13 +1536,13 @@ function renderInstrumentTags() {
     const ratingBadge = rating && rating.rating
       ? `<span class="rating-badge ${ratingClass}" title="${rating.agency||''} · ${rating.outlook||''}">${rating.rating}</span>`
       : '';
-    return `<span class="instrument-tag ${activeInstrumentId===ins.id?'active':''}" onclick="selectInstrument(${ins.id})">
+    return `<span class="instrument-tag ${String(activeInstrumentId)===String(ins.id)?'active':''}" onclick="selectInstrument('${ins.id}')">
       ${ins.name}
       ${ratingBadge}
       ${ins.isins && ins.isins.length === 1 ? `<span style="font-size:9px;color:var(--border);">${ins.isins[0]}</span>` : ins.isins && ins.isins.length > 1 ? `<span style="font-size:9px;color:var(--muted);">${ins.isins.length} ISINs</span>` : ''}
-      <span style="font-size:9px;color:var(--accent2);cursor:pointer;padding:0 3px;" onclick="event.stopPropagation();openPVModal(${ins.id})" title="Present Value / YTM">📐</span>
-      <span style="font-size:9px;color:var(--muted);cursor:pointer;padding:0 3px;" onclick="event.stopPropagation();openAddModal(${ins.id})" title="Edit instrument">✎</span>
-      <span class="remove" onclick="event.stopPropagation();removeInstrument(${ins.id})">×</span>
+      <span style="font-size:9px;color:var(--accent2);cursor:pointer;padding:0 3px;" onclick="event.stopPropagation();openPVModal('${ins.id}')" title="Present Value / YTM">📐</span>
+      <span style="font-size:9px;color:var(--muted);cursor:pointer;padding:0 3px;" onclick="event.stopPropagation();openAddModal('${ins.id}')" title="Edit instrument">✎</span>
+      <span class="remove" onclick="event.stopPropagation();removeInstrument('${ins.id}')">×</span>
     </span>`;
   }).join('');
 }
@@ -1585,8 +1585,10 @@ function renderOverall(tab) {
         </tr>
       </thead>
       <tbody>${rows.map((r,ri) => {
-        const totalUnits = instruments.reduce((a,i)=>a+(i.units||1),0) || 1;
-        const totalFace  = instruments.reduce((a,i)=>a+((i.faceValue||1000)*(i.units||1)),0) || 1000;
+        // For per-unit: find instruments contributing to this row
+        const contribs = instruments.filter(ins => ins.cashflows.some(cf => cf.date === r.date));
+        const totalUnits = contribs.length ? contribs.reduce((a,i)=>a+(i.units||1),0) : instruments.reduce((a,i)=>a+(i.units||1),0);
+        const totalFace  = contribs.length ? contribs.reduce((a,i)=>a+((i.faceValue||1000)*(i.units||1)),0) : instruments.reduce((a,i)=>a+((i.faceValue||1000)*(i.units||1)),0);
         return `<tr class="${r.date<=today?'row-past':''}" id="tr-overall-${ri}">
         <td class="date-col">${fmtDate(r.date)}</td>
         <td>${fmtNum(r.total_principal)}</td>
@@ -1636,10 +1638,35 @@ function renderIndividual() {
   }).join('');
 
   document.getElementById('table-container').innerHTML = `
-    <div class="table-wrap"><table>
-      <thead><tr><th class="col-date" rowspan="2">Date</th>${instHeaders}</tr><tr>${subH}</tr></thead>
-      <tbody>${bodyRows}</tbody>
-    </table></div>`;
+    <details open>
+      <summary style="cursor:pointer;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:11px;color:var(--muted);margin-bottom:12px;list-style:none;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:9px;">▾</span> Cross-Instrument Date View
+      </summary>
+      <div class="table-wrap" style="overflow-x:auto;max-height:320px;">
+        <table>
+          <thead><tr><th class="col-date" rowspan="2">Date</th>${instHeaders}</tr><tr>${subH}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </div>
+    </details>
+    <div style="margin-top:12px;">
+      ${instruments.map(ins => `
+        <div style="margin-bottom:18px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+          <div style="background:var(--surface2);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="font-family:'Playfair Display',serif;font-size:14px;color:var(--accent);">${ins.name}</div>
+            ${ins.isins&&ins.isins.length?`<span style="font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;">${ins.isins.join(', ')}</span>`:''}
+            <span style="font-size:9px;background:rgba(201,169,110,0.1);color:var(--accent);padding:2px 8px;border-radius:4px;">${ins.type}</span>
+            <span style="font-size:9px;color:var(--muted);">${ins.units||1} units × ₹${(ins.faceValue||1000).toLocaleString('en-IN')} = ₹${((ins.units||1)*(ins.faceValue||1000)).toLocaleString('en-IN')}</span>
+            ${ins.purchasePrice?`<span style="font-size:9px;color:var(--accent2);">Purchased @ ₹${ins.purchasePrice.toLocaleString('en-IN')}/unit</span>`:''}
+            <div style="margin-left:auto;display:flex;gap:6px;">
+              <button onclick="openAddModal('${ins.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:3px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">✎ Edit</button>
+              <button onclick="openPVModal('${ins.id}')" style="background:none;border:1px solid rgba(91,141,238,0.3);color:var(--accent2);border-radius:4px;padding:3px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">📐 PV/YTM</button>
+              <button onclick="addNewCashflowRow('${ins.id}')" style="background:none;border:1px solid rgba(74,222,128,0.3);color:var(--green);border-radius:4px;padding:3px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">+ Row</button>
+            </div>
+          </div>
+          <div id="sched-${ins.id}" style="padding:0;">${renderInstrumentCashflowTable(ins)}</div>
+        </div>`).join('')}
+    </div>`;
 }
 
 // ===================== REMINDERS =====================
@@ -1752,7 +1779,7 @@ function copyEmailContent() {
 
 // ===================== MODAL =====================
 function openAddModal(editId) {
-  editingId = editId || null;
+  editingId = editId ? String(editId) : null;
   pendingISINs = [];
   pendingUploadedCFs = null;
   parsedPasteCFs = null;
@@ -2325,12 +2352,12 @@ function switchTab(tab, el) {
   refresh();
 }
 
-function selectInstrument(id) { activeInstrumentId = activeInstrumentId===id ? null : id; refresh(); }
+function selectInstrument(id) { activeInstrumentId = activeInstrumentId===String(id) ? null : String(id); refresh(); }
 
 function removeInstrument(id) {
   if (!confirm('Remove this instrument and all its cashflows?')) return;
-  const ins = instruments.find(i => i.id === id);
-  instruments = instruments.filter(i => i.id !== id);
+  const ins = instruments.find(i => String(i.id) === String(id));
+  instruments = instruments.filter(i => String(i.id) !== String(id));
   if (activeInstrumentId === id) activeInstrumentId = null;
   if (ins && ins._dbId) deleteInstrumentFromDB(ins._dbId);
   refresh();
@@ -2784,7 +2811,7 @@ async function persistInstruments() {
 
   for (const ins of instruments) {
     try {
-      // Build payload — only include id if we already have a DB record
+      const isExisting = ins._dbId && typeof ins._dbId === 'string' && ins._dbId.includes('-');
       const payload = {
         user_id:        userId,
         name:           ins.name,
@@ -2799,61 +2826,74 @@ async function persistInstruments() {
         purchase_date:  ins.purchaseDate  || null,
         accrued_paid:   ins.accruedPaid   || 0
       };
-      // Only set id if we have a valid DB UUID (not a client-side timestamp)
-      if (ins._dbId && typeof ins._dbId === 'string' && ins._dbId.includes('-')) {
-        payload.id = ins._dbId;
+
+      let insRow = null, insErr = null;
+
+      if (isExisting) {
+        // UPDATE existing row by id
+        const res = await _sb
+          .from('instruments')
+          .update(payload)
+          .eq('id', ins._dbId)
+          .eq('user_id', userId)
+          .select()
+          .single();
+        insRow = res.data; insErr = res.error;
+      } else {
+        // INSERT new row — let DB generate UUID
+        const res = await _sb
+          .from('instruments')
+          .insert(payload)
+          .select()
+          .single();
+        insRow = res.data; insErr = res.error;
       }
 
-      const { data: insRow, error: insErr } = await _sb
-        .from('instruments')
-        .upsert(payload, { onConflict: 'id' })
-        .select()
-        .single();
-
       if (insErr) {
-        console.error('Supabase save error for', ins.name, ':', JSON.stringify(insErr));
+        console.error('DB error for', ins.name, JSON.stringify(insErr));
         errorCount++;
         continue;
       }
-      if (!insRow) { console.warn('No row returned for', ins.name); errorCount++; continue; }
+      if (!insRow) { errorCount++; continue; }
 
-      // Store the DB-generated UUID back
       ins._dbId = insRow.id;
       ins.id    = insRow.id;
       savedCount++;
 
-      // Delete old ISINs and cashflows, re-insert fresh
+      // Delete and re-insert ISINs and cashflows
       await Promise.all([
         _sb.from('isins').delete().eq('instrument_id', insRow.id),
         _sb.from('cashflows').delete().eq('instrument_id', insRow.id)
       ]);
 
-      // Re-insert ISINs
       if (ins.isins && ins.isins.length) {
         await _sb.from('isins').insert(
           ins.isins.map(code => ({ instrument_id: insRow.id, isin_code: code }))
         );
       }
 
-      // Re-insert cashflows
       if (ins.cashflows && ins.cashflows.length) {
         await _sb.from('cashflows').insert(
           ins.cashflows.map(cf => ({
             instrument_id: insRow.id,
             cashflow_date: cf.date,
-            principal:     cf.principal   || 0,
-            interest:      cf.interest    || 0,
-            record_date:   cf.recordDate  || null,
-            notes:         cf.notes       || null
+            principal:     cf.principal  || 0,
+            interest:      cf.interest   || 0,
+            record_date:   cf.recordDate || null,
+            notes:         cf.notes      || null
           }))
         );
       }
     } catch(e) {
-      console.error('persist exception for', ins.name, ':', e.message);
+      console.error('persist exception for', ins.name, e.message);
+      errorCount++;
     }
   }
-  if (savedCount > 0) console.log('Saved', savedCount, 'instrument(s) to Supabase');
-  if (errorCount > 0) toast('⚠️ ' + errorCount + ' instrument(s) could not be saved to database', 'warn');
+  if (savedCount > 0) {
+    console.log('Saved', savedCount, 'instrument(s) to Supabase ✓');
+    toast('Saved to cloud ✓', 'success');
+  }
+  if (errorCount > 0) toast('⚠️ ' + errorCount + ' item(s) could not save — check console', 'warn');
 }
 
 async function deleteInstrumentFromDB(id) {
@@ -2867,6 +2907,24 @@ async function deleteInstrumentFromDB(id) {
 
 
 // ===================== EDITABLE CASHFLOW ROWS =====================
+
+function addNewCashflowRow(insId) {
+  const ins = instruments.find(i => i.id === insId);
+  if (!ins) return;
+  const today = new Date().toISOString().slice(0,10);
+  ins.cashflows.push({ date: today, principal: 0, interest: 0, recordDate: '', notes: '' });
+  // Sort by date
+  ins.cashflows.sort((a,b) => a.date.localeCompare(b.date));
+  refresh();
+  persistInstruments();
+  // Auto-open edit on the new row
+  const newIdx = ins.cashflows.findIndex(cf => cf.date === today && cf.principal === 0 && cf.interest === 0);
+  if (newIdx >= 0) {
+    setTimeout(() => editCashflowInstrument(insId, newIdx), 100);
+  }
+}
+
+
 function editOverallCell(ri, field, currentVal) {
   // Find which instrument + cashflow this row belongs to
   // For now just show a toast — individual row editing is on the instrument detail view
@@ -2874,7 +2932,7 @@ function editOverallCell(ri, field, currentVal) {
 }
 
 function editCashflowInstrument(insId, cfIdx) {
-  const ins = instruments.find(i => i.id === insId);
+  const ins = instruments.find(i => String(i.id) === String(insId));
   if (!ins) return;
   const cf = ins.cashflows[cfIdx];
   if (!cf) return;
@@ -2899,7 +2957,7 @@ function editCashflowInstrument(insId, cfIdx) {
 }
 
 function saveCashflowEdit(insId, cfIdx) {
-  const ins = instruments.find(i => i.id === insId);
+  const ins = instruments.find(i => String(i.id) === String(insId));
   if (!ins) return;
   const date      = document.getElementById(`cfe-date-${cfIdx}`)?.value;
   const principal = parseFloat(document.getElementById(`cfe-principal-${cfIdx}`)?.value) || 0;
@@ -2908,18 +2966,31 @@ function saveCashflowEdit(insId, cfIdx) {
   const recordDate = document.getElementById(`cfe-recdate-${cfIdx}`)?.value || '';
   const notes      = document.getElementById(`cfe-notes-${cfIdx}`)?.value   || '';
   ins.cashflows[cfIdx] = { date, principal, interest, recordDate, notes };
+  // Sort cashflows by date after edit
+  ins.cashflows.sort((a,b) => a.date.localeCompare(b.date));
+  // Refresh just this instrument's schedule panel if visible, else full refresh
+  const schedEl = document.getElementById(`sched-${insId}`);
+  if (schedEl) {
+    schedEl.innerHTML = renderInstrumentCashflowTable(ins);
+  } else {
+    refresh();
+  }
   persistInstruments();
-  refresh();
-  toast('Cashflow row updated ✓', 'success');
+  toast('Row updated ✓', 'success');
 }
 
 function deleteCashflowRow(insId, cfIdx) {
-  const ins = instruments.find(i => i.id === insId);
+  const ins = instruments.find(i => String(i.id) === String(insId));
   if (!ins) return;
   if (!confirm('Delete this cashflow row?')) return;
   ins.cashflows.splice(cfIdx, 1);
+  const schedEl = document.getElementById(`sched-${insId}`);
+  if (schedEl) {
+    schedEl.innerHTML = renderInstrumentCashflowTable(ins);
+  } else {
+    refresh();
+  }
   persistInstruments();
-  refresh();
   toast('Row deleted', 'success');
 }
 
@@ -2961,7 +3032,7 @@ function renderInstrumentCashflowTable(ins) {
         <td style="text-align:right;font-size:11px;color:${net>0?'var(--green)':net<0?'var(--red)':'var(--muted)'}">${fmtCcy(net)}</td>
         <td style="font-size:10px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;">${cf.notes||'—'}</td>
         <td style="font-size:10px;text-align:center;">${isInvestment?'<span style="color:var(--red);">Investment</span>':past?'<span style="color:var(--muted);">Past</span>':'<span style="color:var(--green);">Upcoming</span>'}</td>
-        <td><button onclick="editCashflowInstrument(${ins.id},${cfIdx})" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;" title="Edit row">✎</button></td>
+        <td><button onclick="editCashflowInstrument('${ins.id}',${cfIdx})" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;" title="Edit row">✎</button></td>
       </tr>`;
     }).join('')}
     </tbody>
@@ -3090,8 +3161,8 @@ document.getElementById('drill-modal').addEventListener('click', function(e) {
 let pvInstrumentId = null;
 
 function openPVModal(insId) {
-  pvInstrumentId = insId;
-  const ins = instruments.find(i => i.id === insId);
+  pvInstrumentId = String(insId);
+  const ins = instruments.find(i => String(i.id) === String(insId));
   if (!ins) return;
   document.getElementById('pv-modal-title').textContent = `📐 ${ins.name} — Present Value & YTM`;
   document.getElementById('pv-date').value          = new Date().toISOString().slice(0,10);
