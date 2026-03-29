@@ -2956,8 +2956,8 @@ function renderInstrumentCashflowTable(ins) {
           ${(cf.principal||0)!==0?fmtCcy(cf.principal):'-'}
         </td>
         <td style="text-align:right;font-size:11px;color:var(--green)">${(cf.interest||0)>0?fmtCcy(cf.interest):'-'}</td>
-        <td style="text-align:right;font-size:10px;color:var(--accent2);">${(cf.interest||0)+(cf.principal||0)!==0?fmtPerUnit((cf.interest||0)+(cf.principal||0),${u}):'–'}</td>
-        <td style="text-align:right;font-size:10px;color:var(--yellow);">${(cf.interest||0)+(cf.principal||0)!==0?fmtPer100raw((cf.interest||0)+(cf.principal||0),${totalFace}):'–'}</td>
+        <td style="text-align:right;font-size:10px;color:var(--accent2);">${(cf.interest||0)+(cf.principal||0)!==0?fmtPerUnit((cf.interest||0)+(cf.principal||0),u):'–'}</td>
+        <td style="text-align:right;font-size:10px;color:var(--yellow);">${(cf.interest||0)+(cf.principal||0)!==0?fmtPer100raw((cf.interest||0)+(cf.principal||0),totalFace):'–'}</td>
         <td style="text-align:right;font-size:11px;color:${net>0?'var(--green)':net<0?'var(--red)':'var(--muted)'}">${fmtCcy(net)}</td>
         <td style="font-size:10px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;">${cf.notes||'—'}</td>
         <td style="font-size:10px;text-align:center;">${isInvestment?'<span style="color:var(--red);">Investment</span>':past?'<span style="color:var(--muted);">Past</span>':'<span style="color:var(--green);">Upcoming</span>'}</td>
