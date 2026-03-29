@@ -147,6 +147,44 @@
   .cas-btn { background: rgba(45,212,191,0.08); border: 1px solid rgba(45,212,191,0.3); color: #2dd4bf; padding: 5px 14px; border-radius: 20px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
   .cas-btn:hover { background: rgba(45,212,191,0.15); }
 
+  /* ── PHASE 3: PORTFOLIO ── */
+  .port-section { background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:20px; overflow:hidden; }
+  .port-section-header { background:var(--surface2); padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; cursor:pointer; user-select:none; }
+  .port-section-title { font-family:'Playfair Display',serif; font-size:15px; display:flex; align-items:center; gap:10px; }
+  .port-section-icon { font-size:20px; }
+  .port-section-stats { display:flex; gap:16px; flex-wrap:wrap; font-size:10px; color:var(--muted); align-items:center; }
+  .port-stat { display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
+  .port-stat .ps-label { font-size:8px; text-transform:uppercase; letter-spacing:0.08em; }
+  .port-stat .ps-value { font-size:13px; font-weight:600; font-family:'Playfair Display',serif; }
+  .port-stat .ps-value.pos { color:var(--green); }
+  .port-stat .ps-value.neg { color:var(--red); }
+  .port-stat .ps-value.acc { color:var(--accent); }
+  .port-stat .ps-value.blue { color:var(--accent2); }
+  .port-body { padding:16px 18px; }
+  .port-add-btn { background:none; border:1px dashed var(--border); color:var(--muted); padding:6px 14px; border-radius:6px; cursor:pointer; font-family:'DM Mono',monospace; font-size:11px; transition:all 0.15s; }
+  .port-add-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .port-item { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:10px; position:relative; }
+  .port-item-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .port-item-name { font-size:13px; font-weight:600; color:var(--text); }
+  .port-item-meta { font-size:10px; color:var(--muted); margin-top:2px; }
+  .port-item-actions { display:flex; gap:5px; }
+  .port-item-action { background:none; border:1px solid var(--border); color:var(--muted); border-radius:4px; padding:2px 8px; cursor:pointer; font-size:9px; font-family:'DM Mono',monospace; transition:all 0.15s; }
+  .port-item-action:hover { border-color:var(--accent); color:var(--accent); }
+  .port-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:8px; margin-top:8px; }
+  .port-metric { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px 10px; text-align:center; }
+  .port-metric .pm-label { font-size:8px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:3px; }
+  .port-metric .pm-value { font-size:14px; font-weight:700; font-family:'Playfair Display',serif; }
+  .port-summary-bar { background:var(--surface2); border-top:1px solid var(--border); padding:10px 18px; display:flex; gap:20px; flex-wrap:wrap; font-size:11px; }
+  .port-grand-summary { background:linear-gradient(135deg,var(--surface),var(--surface2)); border:1px solid var(--border); border-radius:12px; padding:18px 22px; margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; }
+  .pgs-item { text-align:center; }
+  .pgs-label { font-size:9px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:4px; }
+  .pgs-value { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; }
+  /* Port modal */
+  .port-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .port-form-grid.triple { grid-template-columns:1fr 1fr 1fr; }
+  .port-form-grid.quad { grid-template-columns:1fr 1fr 1fr 1fr; }
+  .port-cashflow-row { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:end; margin-bottom:8px; }
+
   /* ── CREDIT RATING BADGE ── */
   .rating-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; font-size:9px; font-family:'DM Mono',monospace; font-weight:600; letter-spacing:0.06em; }
   .rating-aaa,.rating-aa { background:rgba(74,222,128,0.15); color:var(--green); border:1px solid rgba(74,222,128,0.3); }
@@ -611,6 +649,7 @@
     <button class="tab-btn active" onclick="switchTab('individual',this)">📑 By Instrument</button>
     <button class="tab-btn" onclick="switchTab('upcoming',this)">⏰ Upcoming</button>
     <button class="tab-btn" onclick="switchTab('past',this)">✅ Past</button>
+    <button class="tab-btn" onclick="switchTab('portfolio',this)" style="border-color:rgba(168,85,247,0.4);color:#a855f7;">🗂 Portfolio</button>
   </div>
 
   <!-- METRICS -->
@@ -633,6 +672,7 @@
 
   <div id="table-container"></div>
   <div id="dashboard-container" class="dashboard"></div>
+  <div id="portfolio-container" style="display:none;"></div>
 </div>
 
 <!-- ===== ADD INSTRUMENT MODAL ===== -->
@@ -1048,6 +1088,18 @@ or
     <div style="margin-top:12px;font-size:10px;color:var(--muted);line-height:1.6;" id="pv-cashflow-count"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('pv-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PORTFOLIO MODAL ===== -->
+<div class="modal-overlay" id="port-modal">
+  <div class="modal" style="width:720px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-title" id="port-modal-title">Add Entry</div>
+    <div id="port-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('port-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePortItem()">Save Entry</button>
     </div>
   </div>
 </div>
@@ -2457,10 +2509,13 @@ function switchTab(tab, el) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   const isDash = tab === 'dashboard';
-  document.getElementById('table-container').style.display = isDash ? 'none' : 'block';
-  document.getElementById('dashboard-container').className = isDash ? 'dashboard active' : 'dashboard';
-  document.getElementById('metrics-section').style.display = isDash ? 'none' : 'flex';
-  refresh();
+  const isPort = tab === 'portfolio';
+  document.getElementById('table-container').style.display  = (isDash || isPort) ? 'none' : 'block';
+  document.getElementById('dashboard-container').className  = isDash ? 'dashboard active' : 'dashboard';
+  document.getElementById('metrics-section').style.display  = (isDash || isPort) ? 'none' : 'flex';
+  document.getElementById('portfolio-container').style.display = isPort ? 'block' : 'none';
+  if (isPort) renderPortfolio();
+  else refresh();
 }
 
 function selectInstrument(id) { activeInstrumentId = activeInstrumentId===String(id) ? null : String(id); refresh(); }
@@ -2864,6 +2919,7 @@ async function onAuth(user) {
   showProfileButton(user);
   // Load saved instruments from Supabase
   await loadInstruments(user.id);
+  await loadPortfolioFromDB(user.id);
   // Set current date and refresh
   document.getElementById('current-date-display').textContent = fmtDate(getToday());
   refresh();
@@ -3777,6 +3833,908 @@ function calcDirtyPrice() {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', calcDirtyPrice);
 });
+
+// ===================== PHASE 3: PORTFOLIO TRACKER =====================
+// Data stored in portfolioData object, persisted to Supabase
+// Structure: portfolioData[assetClass] = [ ...items ]
+
+let portfolioData = {
+  fd: [], rd: [], mf: [], equity: [],
+  nps: [], ppf: [], gold: [], cp: [],
+  insurance: [], realestate: []
+};
+
+// ── Persist portfolio to Supabase ──
+async function savePortfolioToDB() {
+  if (!window._currentUser) return;
+  try {
+    const { error } = await _sb.from('portfolio_data')
+      .upsert({
+        user_id: window._currentUser.id,
+        data:    JSON.stringify(portfolioData)
+      }, { onConflict: 'user_id' });
+    if (error) console.error('Portfolio save error:', error);
+  } catch(e) { console.warn('Portfolio save failed:', e.message); }
+}
+
+async function loadPortfolioFromDB(userId) {
+  try {
+    const { data, error } = await _sb.from('portfolio_data')
+      .select('data').eq('user_id', userId).single();
+    if (error || !data) return;
+    const loaded = JSON.parse(data.data || '{}');
+    Object.keys(portfolioData).forEach(k => {
+      if (loaded[k]) portfolioData[k] = loaded[k];
+    });
+  } catch(e) { console.warn('Portfolio load failed:', e.message); }
+}
+
+// ── Calculation helpers ──
+function calcXIRR(cashflows) {
+  // cashflows: [{date, amount}] — negatives are outflows
+  if (!cashflows || cashflows.length < 2) return null;
+  const hasCost = cashflows.some(cf => cf.amount < 0);
+  if (!hasCost) return null;
+  const d0 = new Date(cashflows[0].date);
+  let r = 0.12;
+  for (let i = 0; i < 200; i++) {
+    let f = 0, df = 0;
+    cashflows.forEach(cf => {
+      const yrs = (new Date(cf.date) - d0) / (365.25 * 86400000);
+      f  += cf.amount / Math.pow(1 + r, yrs);
+      df -= yrs * cf.amount / Math.pow(1 + r, yrs + 1);
+    });
+    if (Math.abs(df) < 1e-12) break;
+    const delta = f / df; r -= delta;
+    if (Math.abs(delta) < 1e-9) break;
+  }
+  return (r > -1 && r < 100) ? r : null;
+}
+
+function calcCAGR(startValue, endValue, years) {
+  if (!startValue || !endValue || !years || years <= 0) return null;
+  return Math.pow(endValue / startValue, 1 / years) - 1;
+}
+
+function yearsBetween(d1, d2) {
+  return (new Date(d2) - new Date(d1)) / (365.25 * 86400000);
+}
+
+function fmtPort(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 10000000) return '₹' + (abs / 10000000).toFixed(2) + 'Cr';
+  if (abs >= 100000)   return '₹' + (abs / 100000).toFixed(2) + 'L';
+  return '₹' + abs.toLocaleString('en-IN', {maximumFractionDigits: 2});
+}
+function fmtPct2(r) {
+  if (r === null || r === undefined || isNaN(r)) return '—';
+  return (r * 100).toFixed(2) + '%';
+}
+function fmtGain(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const sign = n >= 0 ? '+' : '-';
+  return sign + fmtPort(n);
+}
+
+// ── Section config ──
+const PORT_SECTIONS = [
+  { key: 'fd',          label: 'Fixed Deposits',          icon: '🏦', color: '#c9a96e' },
+  { key: 'rd',          label: 'Recurring Deposits',       icon: '📅', color: '#5b8dee' },
+  { key: 'mf',          label: 'Mutual Funds',             icon: '📈', color: '#4ade80' },
+  { key: 'equity',      label: 'Equity / Stocks',          icon: '📊', color: '#f87171' },
+  { key: 'nps',         label: 'NPS',                      icon: '🏛️', color: '#fbbf24' },
+  { key: 'ppf',         label: 'PPF / PF',                 icon: '🏛️', color: '#a78bfa' },
+  { key: 'gold',        label: 'Gold / Sovereign Gold Bonds', icon: '🥇', color: '#fbbf24' },
+  { key: 'cp',          label: 'Commercial Papers',         icon: '📄', color: '#2dd4bf' },
+  { key: 'insurance',   label: 'Insurance / ULIP',          icon: '🛡️', color: '#f97316' },
+  { key: 'realestate',  label: 'Real Estate',               icon: '🏠', color: '#84cc16' },
+];
+
+// ── Main render ──
+function renderPortfolio() {
+  const el = document.getElementById('portfolio-container');
+  if (!el) return;
+
+  // Grand summary
+  let totalInvested = 0, totalCurrentValue = 0, totalGain = 0, totalIncome = 0;
+  PORT_SECTIONS.forEach(sec => {
+    (portfolioData[sec.key] || []).forEach(item => {
+      totalInvested      += item.invested      || 0;
+      totalCurrentValue  += item.currentValue  || 0;
+      totalGain          += (item.currentValue || 0) - (item.invested || 0);
+      totalIncome        += item.incomeReceived || 0;
+    });
+  });
+  const grandXIRR = calcCAGR(totalInvested, totalCurrentValue, 2) || 0; // rough
+  const grandAbsPct = totalInvested > 0 ? (totalGain / totalInvested) : 0;
+
+  const grandHTML = '<div class="port-grand-summary animate-fade-up">'
+    + makeGPS('Total Invested',     fmtPort(totalInvested),     'acc')
+    + makeGPS('Current Value',      fmtPort(totalCurrentValue), totalCurrentValue >= totalInvested ? 'pos' : 'neg')
+    + makeGPS('Total Gain/(Loss)',  fmtGain(totalGain),         totalGain >= 0 ? 'pos' : 'neg')
+    + makeGPS('Absolute Return',    fmtPct2(grandAbsPct),       grandAbsPct >= 0 ? 'pos' : 'neg')
+    + makeGPS('Income Received',    fmtPort(totalIncome),       'blue')
+    + '</div>';
+
+  // Sections
+  const sectionsHTML = PORT_SECTIONS.map(sec => renderPortSection(sec)).join('');
+
+  el.innerHTML = grandHTML + sectionsHTML;
+}
+
+function makeGPS(label, value, cls) {
+  return '<div class="pgs-item"><div class="pgs-label">'+label+'</div>'
+    + '<div class="pgs-value '+cls+'">'+value+'</div></div>';
+}
+
+function renderPortSection(sec) {
+  const items = portfolioData[sec.key] || [];
+  const secInvested = items.reduce((a,i) => a+(i.invested||0), 0);
+  const secCurrent  = items.reduce((a,i) => a+(i.currentValue||0), 0);
+  const secGain     = secCurrent - secInvested;
+  const secIncome   = items.reduce((a,i) => a+(i.incomeReceived||0), 0);
+  const secXIRR     = calcSectionXIRR(items);
+
+  const headerStats = secInvested > 0
+    ? '<div class="port-section-stats">'
+      + makeStat('Invested',  fmtPort(secInvested), 'acc')
+      + makeStat('Value',     fmtPort(secCurrent),  secCurrent >= secInvested ? 'pos' : 'neg')
+      + makeStat('Gain',      fmtGain(secGain),      secGain >= 0 ? 'pos' : 'neg')
+      + (secIncome > 0 ? makeStat('Income', fmtPort(secIncome), 'blue') : '')
+      + (secXIRR ? makeStat('XIRR', fmtPct2(secXIRR), secXIRR >= 0 ? 'pos' : 'neg') : '')
+      + '</div>'
+    : '<span style="font-size:10px;color:var(--muted);">'+items.length+' item'+(items.length!==1?'s':'')+' · click to expand</span>';
+
+  const itemsHTML = items.length > 0
+    ? items.map((item, idx) => renderPortItem(sec, item, idx)).join('')
+    : '<div style="color:var(--muted);font-size:12px;padding:10px 0;">No entries yet. Click + Add to get started.</div>';
+
+  return '<div class="port-section" id="port-sec-'+sec.key+'">'
+    + '<div class="port-section-header" onclick="togglePortSection(\''+sec.key+'\')">'
+    + '<div class="port-section-title">'
+    + '<span class="port-section-icon">'+sec.icon+'</span>'
+    + '<span style="color:'+sec.color+';">'+sec.label+'</span>'
+    + '<span style="font-size:11px;color:var(--muted);font-weight:400;">('+items.length+')</span>'
+    + '</div>'
+    + headerStats
+    + '</div>'
+    + '<div class="port-body" id="port-body-'+sec.key+'">'
+    + itemsHTML
+    + '<div style="margin-top:10px;">'
+    + '<button class="port-add-btn" onclick="event.stopPropagation();openPortModal(\''+sec.key+'\')">+ Add '+sec.label+'</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function makeStat(label, value, cls) {
+  return '<div class="port-stat"><div class="ps-label">'+label+'</div><div class="ps-value '+cls+'">'+value+'</div></div>';
+}
+
+function calcSectionXIRR(items) {
+  const allCFs = [];
+  items.forEach(item => {
+    (item.cashflows || []).forEach(cf => allCFs.push(cf));
+  });
+  return calcXIRR(allCFs);
+}
+
+function togglePortSection(key) {
+  const body = document.getElementById('port-body-'+key);
+  if (body) body.style.display = body.style.display === 'none' ? 'block' : '';
+}
+
+// ── Item renderer — dispatches to per-type renderer ──
+function renderPortItem(sec, item, idx) {
+  const fns = {
+    fd: renderFDItem, rd: renderRDItem, mf: renderMFItem,
+    equity: renderEquityItem, nps: renderNPSItem, ppf: renderPPFItem,
+    gold: renderGoldItem, cp: renderCPItem, insurance: renderInsuranceItem,
+    realestate: renderREItem
+  };
+  const fn = fns[sec.key] || renderGenericItem;
+  return fn(sec, item, idx);
+}
+
+function itemActions(key, idx) {
+  return '<div class="port-item-actions">'
+    + '<button class="port-item-action" onclick="editPortItem(\''+key+'\','+idx+')">✎ Edit</button>'
+    + '<button class="port-item-action" style="color:var(--red);border-color:rgba(248,113,113,0.3);" onclick="deletePortItem(\''+key+'\','+idx+')">✕ Delete</button>'
+    + '</div>';
+}
+
+function metricsRow(invested, currentValue, income, xirr, cagr, extra) {
+  const gain = (currentValue || 0) - (invested || 0);
+  const absPct = invested > 0 ? gain / invested : null;
+  var metrics = '<div class="port-metrics">';
+  metrics += portMetric('Invested',       fmtPort(invested),     'acc');
+  metrics += portMetric('Current Value',  fmtPort(currentValue), currentValue >= invested ? 'pos' : 'neg');
+  metrics += portMetric('Gain / (Loss)',  fmtGain(gain),         gain >= 0 ? 'pos' : 'neg');
+  metrics += portMetric('Absolute %',     fmtPct2(absPct),       absPct !== null && absPct >= 0 ? 'pos' : 'neg');
+  if (cagr  !== null && cagr !== undefined)   metrics += portMetric('CAGR',  fmtPct2(cagr),  cagr >= 0 ? 'pos' : 'neg');
+  if (xirr  !== null && xirr !== undefined)   metrics += portMetric('XIRR',  fmtPct2(xirr),  xirr >= 0 ? 'pos' : 'neg');
+  if (income > 0) metrics += portMetric('Income Recd', fmtPort(income), 'blue');
+  if (extra) metrics += extra;
+  metrics += '</div>';
+  return metrics;
+}
+
+function portMetric(label, value, cls) {
+  return '<div class="port-metric"><div class="pm-label">'+label+'</div><div class="pm-value '+cls+'">'+value+'</div></div>';
+}
+
+// ── FD Renderer ──
+function renderFDItem(sec, item, idx) {
+  const matAmt = item.maturityAmount || calcFDMaturity(item);
+  const gain   = matAmt - (item.principal || 0);
+  const years  = yearsBetween(item.startDate, item.maturityDate);
+  const cagr   = calcCAGR(item.principal, matAmt, years);
+  const today  = new Date();
+  const matD   = new Date(item.maturityDate);
+  const isMatured = matD <= today;
+  const daysLeft = Math.ceil((matD - today) / 86400000);
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name
+      + (isMatured ? ' <span style="color:var(--green);font-size:9px;">● Matured</span>' : ' <span style="color:var(--yellow);font-size:9px;">● '+daysLeft+'d left</span>')
+      + '</div>'
+      + '<div class="port-item-meta">'+item.bank+' · '+item.rate+'% p.a. · '+item.compounding+' compounding · '+fmtDateShort(item.startDate)+' → '+fmtDateShort(item.maturityDate)+'</div>'
+    + '</div>'
+    + itemActions('fd', idx)
+    + '</div>'
+    + metricsRow(item.principal, isMatured ? matAmt : calcFDCurrentValue(item), item.interestReceived||0, null, cagr,
+        portMetric('Maturity Amt', fmtPort(matAmt), 'pos')
+        + portMetric('Interest', fmtPort(gain), 'pos')
+        + portMetric('TDS @'+((item.tdsRate||10))+'%', fmtPort(gain*(item.tdsRate||10)/100), 'neg')
+      )
+    + '</div>';
+}
+
+function calcFDMaturity(item) {
+  if (!item.principal || !item.rate || !item.startDate || !item.maturityDate) return 0;
+  const r = item.rate / 100;
+  const years = yearsBetween(item.startDate, item.maturityDate);
+  const compMap = { 'Monthly':12, 'Quarterly':4, 'Half-Yearly':2, 'Annual':1, 'Simple':0 };
+  const n = compMap[item.compounding] || 4;
+  if (n === 0) return item.principal * (1 + r * years); // simple interest
+  return item.principal * Math.pow(1 + r/n, n * years);
+}
+
+function calcFDCurrentValue(item) {
+  if (!item.principal || !item.rate || !item.startDate) return item.principal || 0;
+  const r = item.rate / 100;
+  const years = yearsBetween(item.startDate, new Date().toISOString().slice(0,10));
+  if (years <= 0) return item.principal;
+  const n = { 'Monthly':12, 'Quarterly':4, 'Half-Yearly':2, 'Annual':1, 'Simple':0 }[item.compounding] || 4;
+  if (n === 0) return item.principal * (1 + r * years);
+  return item.principal * Math.pow(1 + r/n, n * years);
+}
+
+// ── RD Renderer ──
+function renderRDItem(sec, item, idx) {
+  const total    = (item.monthlyAmount || 0) * (item.tenureMonths || 0);
+  const matAmt   = calcRDMaturity(item);
+  const gain     = matAmt - total;
+  const years    = (item.tenureMonths || 0) / 12;
+  const cagr     = calcCAGR(total / 2, matAmt, years); // approx — avg invested
+  const today    = new Date();
+  const matD     = item.maturityDate ? new Date(item.maturityDate) : null;
+  const daysLeft = matD ? Math.ceil((matD - today) / 86400000) : null;
+  const months   = item.startDate ? Math.floor(yearsBetween(item.startDate, new Date().toISOString().slice(0,10)) * 12) : 0;
+  const invested = Math.min(months, item.tenureMonths||0) * (item.monthlyAmount||0);
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name
+      + (daysLeft !== null && daysLeft <= 0 ? ' <span style="color:var(--green);font-size:9px;">● Matured</span>'
+        : daysLeft !== null ? ' <span style="color:var(--yellow);font-size:9px;">● '+daysLeft+'d left</span>' : '')
+      + '</div>'
+      + '<div class="port-item-meta">'+item.bank+' · ₹'+fmtN(item.monthlyAmount)+'/month · '+item.rate+'% p.a. · '+item.tenureMonths+' months</div>'
+    + '</div>'
+    + itemActions('rd', idx)
+    + '</div>'
+    + metricsRow(invested, calcRDCurrentValue(item), 0, null, null,
+        portMetric('Total Deposited', fmtPort(total), 'acc')
+        + portMetric('Maturity Amount', fmtPort(matAmt), 'pos')
+        + portMetric('Total Interest', fmtPort(gain), 'pos')
+      )
+    + '</div>';
+}
+
+function calcRDMaturity(item) {
+  if (!item.monthlyAmount || !item.rate || !item.tenureMonths) return 0;
+  const r = item.rate / 100 / 4; // quarterly compounding standard
+  const n = item.tenureMonths;
+  let total = 0;
+  for (let i = 1; i <= n; i++) {
+    total += item.monthlyAmount * Math.pow(1 + r, (n - i + 1) / 3);
+  }
+  return total;
+}
+
+function calcRDCurrentValue(item) {
+  if (!item.startDate || !item.monthlyAmount || !item.rate) return 0;
+  const months = Math.min(Math.floor(yearsBetween(item.startDate, new Date().toISOString().slice(0,10)) * 12), item.tenureMonths || 999);
+  const r = item.rate / 100 / 4;
+  let total = 0;
+  for (let i = 1; i <= months; i++) {
+    const mRemaining = months - i + 1;
+    total += item.monthlyAmount * Math.pow(1 + r, mRemaining / 3);
+  }
+  return total;
+}
+
+// ── MF Renderer ──
+function renderMFItem(sec, item, idx) {
+  const invested = item.invested || (item.units || 0) * (item.avgNAV || 0);
+  const current  = (item.units || 0) * (item.currentNAV || item.avgNAV || 0);
+  const years    = item.firstDate ? yearsBetween(item.firstDate, new Date().toISOString().slice(0,10)) : 1;
+  const cagr     = calcCAGR(invested, current, years);
+  const xirr     = calcXIRR(item.cashflows || []);
+  const divs     = (item.cashflows||[]).filter(cf => cf.amount > 0).reduce((a,cf) => a+cf.amount, 0);
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name+'</div>'
+      + '<div class="port-item-meta">'+item.fundHouse+' · '+item.category+' · Folio: '+(item.folio||'—')+' · Units: '+fmtN(item.units)+' · NAV: ₹'+(item.currentNAV||'—')+'</div>'
+    + '</div>'
+    + itemActions('mf', idx)
+    + '</div>'
+    + metricsRow(invested, current, divs, xirr, cagr,
+        portMetric('Units', fmtN(item.units), 'acc')
+        + portMetric('Avg NAV', '₹'+(item.avgNAV||0).toFixed(2), 'acc')
+        + portMetric('Current NAV', '₹'+(item.currentNAV||0).toFixed(2), 'blue')
+      )
+    + '</div>';
+}
+
+// ── Equity Renderer ──
+function renderEquityItem(sec, item, idx) {
+  const invested = (item.shares || 0) * (item.avgBuyPrice || 0);
+  const current  = (item.shares || 0) * (item.currentPrice || item.avgBuyPrice || 0);
+  const years    = item.buyDate ? yearsBetween(item.buyDate, new Date().toISOString().slice(0,10)) : 1;
+  const cagr     = calcCAGR(invested, current, years);
+  const divs     = item.dividendsReceived || 0;
+  const xirr     = calcXIRR(item.cashflows || []);
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name+' <span style="font-size:10px;color:var(--muted);">'+item.ticker+'</span></div>'
+      + '<div class="port-item-meta">'+item.exchange+' · '+item.sector+' · '+fmtN(item.shares)+' shares @ ₹'+fmtN(item.avgBuyPrice)+' avg · CMP: ₹'+fmtN(item.currentPrice)+'</div>'
+    + '</div>'
+    + itemActions('equity', idx)
+    + '</div>'
+    + metricsRow(invested, current, divs, xirr, cagr,
+        portMetric('Shares', fmtN(item.shares), 'acc')
+        + portMetric('Avg Buy', '₹'+(item.avgBuyPrice||0).toFixed(2), 'acc')
+        + portMetric('CMP', '₹'+(item.currentPrice||0).toFixed(2), 'blue')
+        + (divs > 0 ? portMetric('Dividends', fmtPort(divs), 'blue') : '')
+      )
+    + '</div>';
+}
+
+// ── NPS Renderer ──
+function renderNPSItem(sec, item, idx) {
+  const invested = item.totalContributed || 0;
+  const current  = item.currentCorpus   || invested;
+  const years    = item.startDate ? yearsBetween(item.startDate, new Date().toISOString().slice(0,10)) : 1;
+  const cagr     = calcCAGR(invested, current, years);
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name+'</div>'
+      + '<div class="port-item-meta">'+item.tier+' · PRAN: '+(item.pran||'—')+' · Fund Manager: '+(item.fundManager||'—')+' · Allocation: '+(item.equityPct||0)+'% Eq / '+(100-(item.equityPct||0))+'% Debt</div>'
+    + '</div>'
+    + itemActions('nps', idx)
+    + '</div>'
+    + metricsRow(invested, current, 0, null, cagr,
+        portMetric('Total Contributed', fmtPort(invested), 'acc')
+        + portMetric('Current Corpus', fmtPort(current), 'pos')
+        + (item.retirementDate ? portMetric('Retirement', fmtDateShort(item.retirementDate), 'blue') : '')
+        + (item.expectedCorpus ? portMetric('Projected Corpus', fmtPort(item.expectedCorpus), 'pos') : '')
+      )
+    + '</div>';
+}
+
+// ── PPF/PF Renderer ──
+function renderPPFItem(sec, item, idx) {
+  const invested = item.totalDeposited || 0;
+  const current  = item.currentBalance || invested;
+  const years    = item.startDate ? yearsBetween(item.startDate, new Date().toISOString().slice(0,10)) : 1;
+  const cagr     = calcCAGR(invested, current, years);
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name+'</div>'
+      + '<div class="port-item-meta">'+item.type+' · Rate: '+(item.rate||'—')+'% · Account: '+(item.accountNo||'—')+' · Maturity: '+(fmtDateShort(item.maturityDate)||'—')+'</div>'
+    + '</div>'
+    + itemActions('ppf', idx)
+    + '</div>'
+    + metricsRow(invested, current, 0, null, cagr,
+        portMetric('Annual Deposit', fmtPort(item.annualDeposit), 'acc')
+        + portMetric('Current Balance', fmtPort(current), 'pos')
+        + (item.maturityAmount ? portMetric('Expected Maturity', fmtPort(item.maturityAmount), 'pos') : '')
+      )
+    + '</div>';
+}
+
+// ── Gold Renderer ──
+function renderGoldItem(sec, item, idx) {
+  const invested = item.invested || (item.grams || 0) * (item.buyPrice || 0);
+  const current  = item.type === 'SGB'
+    ? (item.units || 0) * (item.currentNAV || item.faceValue || 0)
+    : (item.grams || 0) * (item.currentPrice || item.buyPrice || 0);
+  const years  = item.buyDate ? yearsBetween(item.buyDate, new Date().toISOString().slice(0,10)) : 1;
+  const cagr   = calcCAGR(invested, current, years);
+  const divs   = item.interestReceived || 0; // SGB interest
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name+'</div>'
+      + '<div class="port-item-meta">'+item.type
+        + (item.type==='SGB' ? ' · Units: '+fmtN(item.units)+' · Face: ₹'+(item.faceValue||0)+' · Current NAV: ₹'+(item.currentNAV||'—')
+          : ' · '+fmtN(item.grams)+'g @ ₹'+fmtN(item.buyPrice)+'/g · Current: ₹'+fmtN(item.currentPrice)+'/g')
+      +'</div>'
+    + '</div>'
+    + itemActions('gold', idx)
+    + '</div>'
+    + metricsRow(invested, current, divs, null, cagr,
+        item.type==='SGB'
+          ? portMetric('Units', fmtN(item.units), 'acc') + portMetric('Interest @2.5%', fmtPort(divs), 'blue')
+          : portMetric('Grams', fmtN(item.grams)+'g', 'acc') + portMetric('Buy Price/g', '₹'+fmtN(item.buyPrice), 'acc')
+      )
+    + '</div>';
+}
+
+// ── CP Renderer ──
+function renderCPItem(sec, item, idx) {
+  const faceValue = item.faceValue || 0;
+  const discRate  = item.discountRate || 0;
+  const days      = yearsBetween(item.issueDate, item.maturityDate) * 365;
+  const issued    = faceValue * (1 - discRate / 100 * days / 365);
+  const current   = item.invested || issued;
+  const yield_    = days > 0 ? ((faceValue - issued) / issued) * (365 / days) : 0;
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name+'</div>'
+      + '<div class="port-item-meta">Issuer: '+item.issuer+' · Discount: '+discRate+'% · '+fmtDateShort(item.issueDate)+' → '+fmtDateShort(item.maturityDate)+' ('+Math.round(days)+'d)</div>'
+    + '</div>'
+    + itemActions('cp', idx)
+    + '</div>'
+    + metricsRow(current, faceValue, 0, null, null,
+        portMetric('Face Value', fmtPort(faceValue), 'acc')
+        + portMetric('Issue Price', fmtPort(issued), 'acc')
+        + portMetric('Discount', discRate+'%', 'blue')
+        + portMetric('Annualised Yield', fmtPct2(yield_), 'pos')
+      )
+    + '</div>';
+}
+
+// ── Insurance/ULIP Renderer ──
+function renderInsuranceItem(sec, item, idx) {
+  const invested = item.totalPremiumPaid || 0;
+  const current  = item.currentValue || item.surrenderValue || invested;
+  const years    = item.startDate ? yearsBetween(item.startDate, new Date().toISOString().slice(0,10)) : 1;
+  const cagr     = calcCAGR(invested, current, years);
+  const xirr     = calcXIRR(item.cashflows || []);
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name+'</div>'
+      + '<div class="port-item-meta">'+item.insurer+' · '+item.type+' · Sum Assured: '+fmtPort(item.sumAssured)+' · Premium: '+fmtPort(item.annualPremium)+'/yr · Policy: '+(item.policyNo||'—')+'</div>'
+    + '</div>'
+    + itemActions('insurance', idx)
+    + '</div>'
+    + metricsRow(invested, current, 0, xirr, cagr,
+        portMetric('Sum Assured', fmtPort(item.sumAssured), 'blue')
+        + portMetric('Annual Premium', fmtPort(item.annualPremium), 'acc')
+        + portMetric('Surrender Value', fmtPort(item.surrenderValue), current >= invested ? 'pos' : 'neg')
+        + (item.maturityDate ? portMetric('Maturity', fmtDateShort(item.maturityDate), 'blue') : '')
+      )
+    + '</div>';
+}
+
+// ── Real Estate Renderer ──
+function renderREItem(sec, item, idx) {
+  const invested     = item.purchasePrice || 0;
+  const current      = item.currentValue  || invested;
+  const years        = item.purchaseDate ? yearsBetween(item.purchaseDate, new Date().toISOString().slice(0,10)) : 1;
+  const cagr         = calcCAGR(invested, current, years);
+  const rentalTotal  = item.rentalReceived || 0;
+  const rentalYield  = rentalTotal > 0 && years > 0 && invested > 0
+    ? (rentalTotal / years) / invested : null;
+  const loanOutstanding = item.loanOutstanding || 0;
+  const netEquity    = current - loanOutstanding;
+
+  return '<div class="port-item">'
+    + '<div class="port-item-header">'
+    + '<div><div class="port-item-name">'+item.name+'</div>'
+      + '<div class="port-item-meta">'+item.propertyType+' · '+item.location+' · Bought: '+fmtDateShort(item.purchaseDate)+(loanOutstanding>0?' · Loan O/S: '+fmtPort(loanOutstanding):'')+'</div>'
+    + '</div>'
+    + itemActions('realestate', idx)
+    + '</div>'
+    + metricsRow(invested, current, rentalTotal, null, cagr,
+        portMetric('Purchase Price', fmtPort(invested), 'acc')
+        + portMetric('Current Value', fmtPort(current), current>=invested?'pos':'neg')
+        + portMetric('Net Equity', fmtPort(netEquity), netEquity>=0?'pos':'neg')
+        + (rentalYield !== null ? portMetric('Rental Yield', fmtPct2(rentalYield), 'blue') : '')
+      )
+    + '</div>';
+}
+
+// ── Generic fallback ──
+function renderGenericItem(sec, item, idx) {
+  return '<div class="port-item">'
+    + '<div class="port-item-header"><div class="port-item-name">'+item.name+'</div>'+itemActions(sec.key,idx)+'</div>'
+    + metricsRow(item.invested||0, item.currentValue||0, item.incomeReceived||0, null, null, '')
+    + '</div>';
+}
+
+function fmtN(n) {
+  if (!n) return '0';
+  return parseFloat(n).toLocaleString('en-IN', {maximumFractionDigits:2});
+}
+function fmtDateShort(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+  catch(e) { return d; }
+}
+
+// ══════════════════════════════════════════════════════
+// PORTFOLIO MODALS — one per asset class
+// ══════════════════════════════════════════════════════
+let portModalKey   = null;
+let portModalIdx   = null;
+let portCFRows     = 0;
+
+function openPortModal(key, idx) {
+  portModalKey = key;
+  portModalIdx = (idx !== undefined && idx !== null) ? idx : null;
+  portCFRows   = 0;
+  const item   = idx !== null && idx !== undefined ? (portfolioData[key]||[])[idx] : null;
+  const sec    = PORT_SECTIONS.find(s => s.key === key);
+  const modal  = document.getElementById('port-modal');
+  const title  = document.getElementById('port-modal-title');
+  const body   = document.getElementById('port-modal-body');
+  title.textContent = (item ? 'Edit ' : 'Add ') + sec.label;
+  body.innerHTML    = buildPortForm(key, item);
+  modal.classList.add('open');
+}
+
+function editPortItem(key, idx) { openPortModal(key, idx); }
+
+function deletePortItem(key, idx) {
+  if (!confirm('Delete this entry?')) return;
+  portfolioData[key].splice(idx, 1);
+  savePortfolioToDB();
+  renderPortfolio();
+}
+
+function savePortItem() {
+  if (!portModalKey) return;
+  const item = collectPortForm(portModalKey);
+  if (!item) return;
+  if (!portfolioData[portModalKey]) portfolioData[portModalKey] = [];
+  if (portModalIdx !== null && portModalIdx !== undefined) {
+    portfolioData[portModalKey][portModalIdx] = item;
+  } else {
+    portfolioData[portModalKey].push(item);
+  }
+  closeModal('port-modal');
+  savePortfolioToDB();
+  renderPortfolio();
+  toast((portModalIdx !== null ? 'Updated' : 'Added') + ' successfully ✓', 'success');
+}
+
+// ── Form builder — dispatches to per-type form ──
+function buildPortForm(key, item) {
+  const builders = {
+    fd: buildFDForm, rd: buildRDForm, mf: buildMFForm,
+    equity: buildEquityForm, nps: buildNPSForm, ppf: buildPPFForm,
+    gold: buildGoldForm, cp: buildCPForm,
+    insurance: buildInsuranceForm, realestate: buildREForm
+  };
+  return (builders[key] || buildGenericForm)(item);
+}
+
+// ── Field helpers ──
+function pf(id, label, type, placeholder, val, extra) {
+  return '<div class="form-field"><label>'+label+'</label>'
+    + '<input type="'+(type||'text')+'" id="pf-'+id+'" placeholder="'+(placeholder||'')+'" value="'+(val||'')+'" '+(extra||'')+'>'
+    + '</div>';
+}
+function ps(id, label, options, val) {
+  return '<div class="form-field"><label>'+label+'</label><select id="pf-'+id+'">'
+    + options.map(o => '<option value="'+o+'"'+(o===val?' selected':'')+'>'+o+'</option>').join('')
+    + '</select></div>';
+}
+function pfRow(cols, fields) {
+  return '<div style="display:grid;grid-template-columns:'+cols+';gap:10px;margin-bottom:8px;">' + fields.join('') + '</div>';
+}
+function gv(item, key, def) { return item && item[key] !== undefined ? item[key] : (def || ''); }
+
+// ── FD Form ──
+function buildFDForm(item) {
+  return pfRow('1fr 1fr', [pf('name','FD Name *','text','e.g. SBI FD', gv(item,'name')), pf('bank','Bank / NBFC','text','e.g. SBI', gv(item,'bank'))])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf('principal','Principal (₹) *','number','e.g. 500000', gv(item,'principal')),
+        pf('rate','Interest Rate % *','number','e.g. 7.5', gv(item,'rate')),
+        pf('startDate','Start Date *','date','', gv(item,'startDate')),
+        pf('maturityDate','Maturity Date *','date','', gv(item,'maturityDate'))
+      ])
+    + pfRow('1fr 1fr 1fr', [
+        ps('compounding','Compounding',['Monthly','Quarterly','Half-Yearly','Annual','Simple'], gv(item,'compounding','Quarterly')),
+        pf('tdsRate','TDS Rate %','number','10', gv(item,'tdsRate',10)),
+        pf('interestReceived','Interest Received (₹)','number','0', gv(item,'interestReceived',0))
+      ])
+    + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
+}
+
+// ── RD Form ──
+function buildRDForm(item) {
+  return pfRow('1fr 1fr', [pf('name','RD Name *','text','e.g. PNB RD', gv(item,'name')), pf('bank','Bank *','text','', gv(item,'bank'))])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf('monthlyAmount','Monthly Amount (₹) *','number','', gv(item,'monthlyAmount')),
+        pf('rate','Interest Rate % *','number','', gv(item,'rate')),
+        pf('tenureMonths','Tenure (months) *','number','', gv(item,'tenureMonths')),
+        pf('startDate','Start Date *','date','', gv(item,'startDate'))
+      ])
+    + pfRow('1fr 1fr', [
+        pf('maturityDate','Maturity Date','date','', gv(item,'maturityDate')),
+        pf('notes','Notes','text','', gv(item,'notes'))
+      ]);
+}
+
+// ── MF Form ──
+function buildMFForm(item) {
+  return pfRow('1fr 1fr', [pf('name','Fund Name *','text','', gv(item,'name')), pf('fundHouse','Fund House','text','', gv(item,'fundHouse'))])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        ps('category','Category',['Equity - Large Cap','Equity - Mid Cap','Equity - Small Cap','Equity - Flexi Cap','ELSS','Debt','Hybrid','Index Fund','ETF','Other'], gv(item,'category','Equity - Large Cap')),
+        pf('folio','Folio Number','text','', gv(item,'folio')),
+        pf('units','Units Held *','number','', gv(item,'units')),
+        pf('avgNAV','Avg Buy NAV (₹) *','number','', gv(item,'avgNAV'))
+      ])
+    + pfRow('1fr 1fr 1fr', [
+        pf('currentNAV','Current NAV (₹)','number','', gv(item,'currentNAV')),
+        pf('firstDate','First Investment Date','date','', gv(item,'firstDate')),
+        pf('invested','Total Invested (₹) override','number','auto-calc if blank', gv(item,'invested'))
+      ])
+    + buildCFSection(item, 'SIP/lumpsum flows (neg = buy, pos = redeem/dividend)')
+    + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
+}
+
+// ── Equity Form ──
+function buildEquityForm(item) {
+  return pfRow('1fr 1fr 1fr', [
+      pf('name','Company Name *','text','', gv(item,'name')),
+      pf('ticker','Ticker Symbol','text','e.g. RELIANCE', gv(item,'ticker')),
+      pf('exchange','Exchange','text','NSE / BSE', gv(item,'exchange'))
+    ])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf('shares','Shares / Qty *','number','', gv(item,'shares')),
+        pf('avgBuyPrice','Avg Buy Price (₹) *','number','', gv(item,'avgBuyPrice')),
+        pf('currentPrice','Current Market Price (₹)','number','', gv(item,'currentPrice')),
+        pf('sector','Sector','text','', gv(item,'sector'))
+      ])
+    + pfRow('1fr 1fr', [
+        pf('buyDate','Buy Date (earliest)','date','', gv(item,'buyDate')),
+        pf('dividendsReceived','Dividends Received (₹)','number','0', gv(item,'dividendsReceived',0))
+      ])
+    + buildCFSection(item, 'Buys (neg), sells (pos), dividends (pos)')
+    + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
+}
+
+// ── NPS Form ──
+function buildNPSForm(item) {
+  return pfRow('1fr 1fr', [
+      pf('name','NPS Account Name *','text','e.g. NPS - Tier I', gv(item,'name')),
+      ps('tier','Tier',['Tier I','Tier II'], gv(item,'tier','Tier I'))
+    ])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf('pran','PRAN Number','text','', gv(item,'pran')),
+        pf('fundManager','Fund Manager','text','SBI / LIC / HDFC etc.', gv(item,'fundManager')),
+        pf('equityPct','Equity % Allocation','number','', gv(item,'equityPct',50)),
+        pf('startDate','Start Date','date','', gv(item,'startDate'))
+      ])
+    + pfRow('1fr 1fr 1fr', [
+        pf('totalContributed','Total Contributed (₹)','number','', gv(item,'totalContributed')),
+        pf('currentCorpus','Current Corpus (₹)','number','', gv(item,'currentCorpus')),
+        pf('retirementDate','Expected Retirement','date','', gv(item,'retirementDate'))
+      ])
+    + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
+}
+
+// ── PPF / PF Form ──
+function buildPPFForm(item) {
+  return pfRow('1fr 1fr 1fr', [
+      pf('name','Account Name *','text','e.g. PPF - SBI', gv(item,'name')),
+      ps('type','Type',['PPF','EPF','GPF','VPF'], gv(item,'type','PPF')),
+      pf('accountNo','Account Number','text','', gv(item,'accountNo'))
+    ])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf('rate','Current Rate %','number','', gv(item,'rate')),
+        pf('startDate','Start Date','date','', gv(item,'startDate')),
+        pf('maturityDate','Maturity Date','date','', gv(item,'maturityDate')),
+        pf('annualDeposit','Annual Deposit (₹)','number','', gv(item,'annualDeposit'))
+      ])
+    + pfRow('1fr 1fr', [
+        pf('totalDeposited','Total Deposited (₹)','number','', gv(item,'totalDeposited')),
+        pf('currentBalance','Current Balance (₹)','number','', gv(item,'currentBalance'))
+      ])
+    + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
+}
+
+// ── Gold Form ──
+function buildGoldForm(item) {
+  const isSGB = gv(item,'type','Physical') === 'SGB';
+  return pfRow('1fr 1fr', [
+      pf('name','Name *','text','e.g. SGB 2024-25 Series I', gv(item,'name')),
+      ps('type','Type',['Physical Gold','Gold ETF','Gold MF','SGB'], gv(item,'type','Physical Gold'))
+    ])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf(isSGB?'units':'grams', isSGB?'Units':'Grams', 'number','', isSGB?gv(item,'units'):gv(item,'grams')),
+        pf(isSGB?'faceValue':'buyPrice', isSGB?'Face Value/unit (₹)':'Buy Price/gram (₹)', 'number','', isSGB?gv(item,'faceValue'):gv(item,'buyPrice')),
+        pf(isSGB?'currentNAV':'currentPrice', isSGB?'Current NAV (₹)':'Current Price/gram (₹)', 'number','', isSGB?gv(item,'currentNAV'):gv(item,'currentPrice')),
+        pf('buyDate','Buy Date','date','', gv(item,'buyDate'))
+      ])
+    + pfRow('1fr 1fr', [
+        pf('invested','Total Invested (₹)','number','', gv(item,'invested')),
+        pf('interestReceived','Interest Received (₹ SGB only)','number','0', gv(item,'interestReceived',0))
+      ])
+    + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
+}
+
+// ── CP Form ──
+function buildCPForm(item) {
+  return pfRow('1fr 1fr', [pf('name','CP Name *','text','', gv(item,'name')), pf('issuer','Issuer *','text','', gv(item,'issuer'))])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf('faceValue','Face Value (₹)','number','', gv(item,'faceValue')),
+        pf('discountRate','Discount Rate %','number','', gv(item,'discountRate')),
+        pf('issueDate','Issue Date','date','', gv(item,'issueDate')),
+        pf('maturityDate','Maturity Date','date','', gv(item,'maturityDate'))
+      ])
+    + pfRow('1fr 1fr', [
+        pf('invested','Invested Amount (₹)','number','', gv(item,'invested')),
+        pf('notes','Notes','text','', gv(item,'notes'))
+      ]);
+}
+
+// ── Insurance Form ──
+function buildInsuranceForm(item) {
+  return pfRow('1fr 1fr 1fr', [
+      pf('name','Policy Name *','text','', gv(item,'name')),
+      pf('insurer','Insurer','text','', gv(item,'insurer')),
+      ps('type','Type',['Term','ULIP','Endowment','Money Back','Whole Life'], gv(item,'type','ULIP'))
+    ])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf('policyNo','Policy Number','text','', gv(item,'policyNo')),
+        pf('sumAssured','Sum Assured (₹)','number','', gv(item,'sumAssured')),
+        pf('annualPremium','Annual Premium (₹)','number','', gv(item,'annualPremium')),
+        pf('startDate','Start Date','date','', gv(item,'startDate'))
+      ])
+    + pfRow('1fr 1fr 1fr', [
+        pf('maturityDate','Maturity Date','date','', gv(item,'maturityDate')),
+        pf('totalPremiumPaid','Total Premium Paid (₹)','number','', gv(item,'totalPremiumPaid')),
+        pf('surrenderValue','Surrender / Current Value (₹)','number','', gv(item,'surrenderValue'))
+      ])
+    + buildCFSection(item, 'Premium payments (neg), payouts (pos)')
+    + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
+}
+
+// ── Real Estate Form ──
+function buildREForm(item) {
+  return pfRow('1fr 1fr 1fr', [
+      pf('name','Property Name *','text','e.g. Flat 4B, Andheri', gv(item,'name')),
+      ps('propertyType','Type',['Residential - Flat','Residential - House','Commercial','Land / Plot','Agricultural'], gv(item,'propertyType','Residential - Flat')),
+      pf('location','Location','text','', gv(item,'location'))
+    ])
+    + pfRow('1fr 1fr 1fr 1fr', [
+        pf('purchasePrice','Purchase Price (₹)','number','', gv(item,'purchasePrice')),
+        pf('purchaseDate','Purchase Date','date','', gv(item,'purchaseDate')),
+        pf('currentValue','Current Market Value (₹)','number','', gv(item,'currentValue')),
+        pf('loanOutstanding','Loan Outstanding (₹)','number','0', gv(item,'loanOutstanding',0))
+      ])
+    + pfRow('1fr 1fr 1fr', [
+        pf('rentalMonthly','Monthly Rental (₹)','number','0', gv(item,'rentalMonthly',0)),
+        pf('rentalReceived','Total Rental Received (₹)','number','0', gv(item,'rentalReceived',0)),
+        pf('notes','Notes','text','', gv(item,'notes'))
+      ]);
+}
+
+// ── Generic Form ──
+function buildGenericForm(item) {
+  return pfRow('1fr 1fr', [pf('name','Name *','text','', gv(item,'name')), pf('invested','Amount Invested (₹)','number','', gv(item,'invested'))])
+    + pfRow('1fr 1fr', [pf('currentValue','Current Value (₹)','number','', gv(item,'currentValue')), pf('incomeReceived','Income Received (₹)','number','', gv(item,'incomeReceived'))])
+    + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
+}
+
+// ── Cashflow section builder (for MF, Equity, Insurance) ──
+function buildCFSection(item, hint) {
+  const cfs = item ? (item.cashflows || []) : [];
+  let html = '<div class="section-label" style="margin-top:12px;">Cashflows <span style="color:var(--muted);font-weight:400;font-size:9px;">'+hint+'</span></div>';
+  html += '<div id="port-cf-rows">';
+  cfs.forEach((cf, i) => {
+    portCFRows++;
+    html += portCFRow(i, cf.date, cf.amount, cf.label);
+  });
+  html += '</div>';
+  html += '<button class="port-add-btn" style="margin-top:6px;" onclick="addPortCFRow()">+ Add cashflow</button>';
+  return html;
+}
+
+function portCFRow(i, date, amount, label) {
+  portCFRows = Math.max(portCFRows, i+1);
+  return '<div id="pcf-row-'+i+'" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:6px;">'
+    + '<div class="form-field"><label>Date</label><input type="date" id="pcf-date-'+i+'" value="'+(date||'')+'"></div>'
+    + '<div class="form-field"><label>Amount (₹)</label><input type="number" id="pcf-amount-'+i+'" value="'+(amount||'')+'" step="0.01"></div>'
+    + '<div class="form-field"><label>Label</label><input type="text" id="pcf-label-'+i+'" value="'+(label||'')+'" placeholder="e.g. SIP, Redemption"></div>'
+    + '<div class="form-field" style="justify-content:flex-end;"><button class="btn btn-danger btn-sm" onclick="document.getElementById(\'pcf-row-'+i+'\').remove()">✕</button></div>'
+    + '</div>';
+}
+
+function addPortCFRow() {
+  const wrap = document.getElementById('port-cf-rows');
+  if (!wrap) return;
+  const id = portCFRows++;
+  wrap.insertAdjacentHTML('beforeend', portCFRow(id, '', '', ''));
+}
+
+// ── Form data collector ──
+function collectPortForm(key) {
+  function gfv(id) {
+    const el = document.getElementById('pf-'+id);
+    if (!el) return undefined;
+    const v = el.value.trim();
+    if (el.type === 'number') return v ? parseFloat(v) : undefined;
+    return v || undefined;
+  }
+
+  const name = gfv('name');
+  if (!name) { toast('Please enter a name', 'warn'); return null; }
+
+  // Collect cashflows if present
+  const cfs = [];
+  for (let i = 0; i < portCFRows + 20; i++) {
+    const dateEl = document.getElementById('pcf-date-'+i);
+    if (!dateEl) continue;
+    const amt = parseFloat(document.getElementById('pcf-amount-'+i)?.value) || 0;
+    const lbl = document.getElementById('pcf-label-'+i)?.value || '';
+    if (dateEl.value && amt !== 0) cfs.push({ date: dateEl.value, amount: amt, label: lbl });
+  }
+
+  // Key-specific fields
+  const fieldMap = {
+    fd:        ['name','bank','principal','rate','startDate','maturityDate','compounding','tdsRate','interestReceived','notes'],
+    rd:        ['name','bank','monthlyAmount','rate','tenureMonths','startDate','maturityDate','notes'],
+    mf:        ['name','fundHouse','category','folio','units','avgNAV','currentNAV','firstDate','invested','notes'],
+    equity:    ['name','ticker','exchange','shares','avgBuyPrice','currentPrice','sector','buyDate','dividendsReceived','notes'],
+    nps:       ['name','tier','pran','fundManager','equityPct','startDate','totalContributed','currentCorpus','retirementDate','notes'],
+    ppf:       ['name','type','accountNo','rate','startDate','maturityDate','annualDeposit','totalDeposited','currentBalance','notes'],
+    gold:      ['name','type','units','grams','faceValue','buyPrice','currentNAV','currentPrice','buyDate','invested','interestReceived','notes'],
+    cp:        ['name','issuer','faceValue','discountRate','issueDate','maturityDate','invested','notes'],
+    insurance: ['name','insurer','type','policyNo','sumAssured','annualPremium','startDate','maturityDate','totalPremiumPaid','surrenderValue','notes'],
+    realestate:['name','propertyType','location','purchasePrice','purchaseDate','currentValue','loanOutstanding','rentalMonthly','rentalReceived','notes']
+  };
+  const fields = fieldMap[key] || ['name','invested','currentValue','incomeReceived','notes'];
+  const item = {};
+  fields.forEach(f => {
+    const v = gfv(f);
+    if (v !== undefined) item[f] = v;
+  });
+  if (cfs.length) item.cashflows = cfs;
+
+  // Auto-calculate invested where applicable
+  if (key === 'mf'      && !item.invested && item.units && item.avgNAV)   item.invested = item.units * item.avgNAV;
+  if (key === 'equity'  && !item.invested && item.shares && item.avgBuyPrice) item.invested = item.shares * item.avgBuyPrice;
+  if (key === 'realestate') item.invested = item.purchasePrice;
+
+  return item;
+}
+
+
 
 // ===================== THEME TOGGLE =====================
 function initTheme() {
