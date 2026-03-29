@@ -672,11 +672,30 @@
       </div>
       <div class="form-field">
         <label>Units / Quantity</label>
-        <input type="number" id="f-units" value="1" min="1" step="1" placeholder="e.g. 100">
+        <input type="number" id="f-units" value="1" min="1" step="1" placeholder="e.g. 100" oninput="calcDirtyPrice()">
       </div>
       <div class="form-field">
         <label>Face Value per Unit (₹)</label>
         <input type="number" id="f-facevalue" value="1000" min="1" step="1" placeholder="e.g. 1000">
+      </div>
+    </div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+      <div class="form-field">
+        <label>Purchase Price per Unit (₹) <span style="color:var(--accent2);font-size:9px;">for PV/YTM</span></label>
+        <input type="number" id="f-purchase-price" step="0.01" placeholder="e.g. 980 (leave blank if at face value)">
+      </div>
+      <div class="form-field">
+        <label>Purchase Date</label>
+        <input type="date" id="f-purchase-date">
+      </div>
+      <div class="form-field">
+        <label>Accrued Interest Paid (₹)</label>
+        <input type="number" id="f-accrued-paid" value="0" step="0.01" placeholder="0">
+      </div>
+      <div class="form-field">
+        <label>Dirty Price / Total Cost (₹)</label>
+        <input type="number" id="f-dirty-price" step="0.01" placeholder="Auto-calculated" readonly
+          style="background:var(--surface2);color:var(--muted);" id="f-dirty-price">
       </div>
     </div>
 
@@ -937,7 +956,7 @@ or
 <div class="modal-overlay" id="pv-modal">
   <div class="modal" style="width:580px;">
     <div class="modal-title" id="pv-modal-title">📐 Present Value & YTM</div>
-    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:14px;">
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:14px;">
       <div class="form-field">
         <label>Discount Rate / Required Yield %</label>
         <input type="number" id="pv-discount" value="12" step="0.01" placeholder="e.g. 12" oninput="calcPV()">
@@ -947,36 +966,57 @@ or
         <input type="date" id="pv-date" oninput="calcPV()">
       </div>
       <div class="form-field">
-        <label>Market Price (₹ per unit, optional)</label>
-        <input type="number" id="pv-market-price" step="0.01" placeholder="e.g. 980" oninput="calcPV()">
+        <label>Market Price (₹ per unit)</label>
+        <input type="number" id="pv-market-price" step="0.01" placeholder="Override purchase price" oninput="calcPV()">
+      </div>
+      <div class="form-field">
+        <label>Purchase Price (₹ per unit)</label>
+        <input type="number" id="pv-purchase-price" step="0.01" placeholder="From instrument" readonly
+          style="background:var(--surface2);color:var(--muted);">
       </div>
     </div>
     <div class="pv-section">
       <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Results</div>
       <div class="pv-grid">
         <div class="pv-item">
-          <div class="pv-label">Present Value</div>
+          <div class="pv-label">Present Value (DCF)</div>
           <div class="pv-value" id="pv-result" style="color:var(--accent);">—</div>
         </div>
         <div class="pv-item">
-          <div class="pv-label">YTM (Newton-Raphson)</div>
+          <div class="pv-label">YTM (at purchase price)</div>
           <div class="pv-value" id="pv-ytm" style="color:var(--accent2);">—</div>
         </div>
         <div class="pv-item">
-          <div class="pv-label">Duration (years)</div>
-          <div class="pv-value" id="pv-duration" style="color:var(--yellow);">—</div>
+          <div class="pv-label">YTM (at face value)</div>
+          <div class="pv-value" id="pv-ytm-face" style="color:var(--yellow);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Gain / (Loss) vs Purchase</div>
+          <div class="pv-value" id="pv-gain" style="color:var(--green);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Macaulay Duration</div>
+          <div class="pv-value" id="pv-duration" style="color:var(--muted);">—</div>
         </div>
         <div class="pv-item">
           <div class="pv-label">Modified Duration</div>
-          <div class="pv-value" id="pv-mod-duration" style="color:var(--green);">—</div>
+          <div class="pv-value" id="pv-mod-duration" style="color:var(--muted);">—</div>
         </div>
         <div class="pv-item">
           <div class="pv-label">Accrued Interest</div>
           <div class="pv-value" id="pv-accrued" style="color:var(--muted);">—</div>
         </div>
         <div class="pv-item">
-          <div class="pv-label">Clean Price</div>
+          <div class="pv-label">Clean Price (PV - AI)</div>
           <div class="pv-value" id="pv-clean" style="color:var(--text);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Total Cost (Dirty Price)</div>
+          <div class="pv-value" id="pv-dirty" style="color:var(--red);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Unrealised P&L</div>
+          <div class="pv-value" id="pv-pnl" style="color:var(--green);">—</div>
         </div>
       </div>
     </div>
@@ -1709,10 +1749,17 @@ function openAddModal(editId) {
       document.getElementById('f-rating-date').value     = cr.date    || '';
       document.getElementById('f-rating-watch').value    = cr.watch   || 'none';
       pendingISINs = [...(ins.isins||[])];
+      document.getElementById('f-purchase-price').value = ins.purchasePrice || '';
+      document.getElementById('f-purchase-date').value  = ins.purchaseDate  || '';
+      document.getElementById('f-accrued-paid').value   = ins.accruedPaid   || 0;
       ins.cashflows.forEach(cf => addCashflowRow(cf));
+      calcDirtyPrice();
     }
   } else {
     // Reset credit rating
+    document.getElementById('f-purchase-price').value = '';
+    document.getElementById('f-purchase-date').value  = '';
+    document.getElementById('f-accrued-paid').value   = 0;
     document.getElementById('f-rating-agency').value  = '';
     document.getElementById('f-rating').value          = '';
     document.getElementById('f-rating-outlook').value  = '';
@@ -2208,7 +2255,10 @@ function saveInstrument() {
     watch:   document.getElementById('f-rating-watch').value
   };
 
-  const ins = { id: editingId || Date.now(), name, isins: [...pendingISINs], nominal, xirr, tdsRate, type, units, faceValue, cashflows, creditRating };
+  const purchasePrice = parseFloat(document.getElementById('f-purchase-price').value) || 0;
+  const purchaseDate  = document.getElementById('f-purchase-date').value || '';
+  const accruedPaid   = parseFloat(document.getElementById('f-accrued-paid').value) || 0;
+  const ins = { id: editingId || Date.now(), name, isins: [...pendingISINs], nominal, xirr, tdsRate, type, units, faceValue, purchasePrice, purchaseDate, accruedPaid, cashflows, creditRating };
   if (editingId) instruments = instruments.map(i => i.id === editingId ? ins : i);
   else instruments.push(ins);
 
@@ -2662,12 +2712,17 @@ async function loadInstruments(userId) {
         tdsRate:      row.tds_rate || 0.1,
         units:        row.units || 1,
         faceValue:    row.face_value || 1000,
-        creditRating: row.credit_rating || {},
+        creditRating:  row.credit_rating || {},
+        purchasePrice: row.purchase_price || 0,
+        purchaseDate:  row.purchase_date  || '',
+        accruedPaid:   row.accrued_paid   || 0,
         isins:        (isinRes.data || []).map(r => r.isin_code),
         cashflows:    (cfRes.data || []).map(r => ({
-          date:      r.cashflow_date,
-          principal: r.principal || 0,
-          interest:  r.interest  || 0
+          date:       r.cashflow_date,
+          principal:  r.principal  || 0,
+          interest:   r.interest   || 0,
+          recordDate: r.record_date || '',
+          notes:      r.notes      || ''
         }))
       };
     }));
@@ -2696,7 +2751,10 @@ async function persistInstruments() {
           tds_rate:     ins.tdsRate,
           units:        ins.units,
           face_value:   ins.faceValue,
-          credit_rating: ins.creditRating || {}
+          credit_rating:   ins.creditRating || {},
+          purchase_price: ins.purchasePrice || 0,
+          purchase_date:  ins.purchaseDate  || null,
+          accrued_paid:   ins.accruedPaid   || 0
         }, { onConflict: 'id' })
         .select()
         .single();
@@ -2726,8 +2784,10 @@ async function persistInstruments() {
           ins.cashflows.map(cf => ({
             instrument_id: insRow.id,
             cashflow_date: cf.date,
-            principal:     cf.principal || 0,
-            interest:      cf.interest  || 0
+            principal:     cf.principal   || 0,
+            interest:      cf.interest    || 0,
+            record_date:   cf.recordDate  || null,
+            notes:         cf.notes       || null
           }))
         );
       }
@@ -2763,13 +2823,16 @@ function editCashflowInstrument(insId, cfIdx) {
   const rowEl = document.getElementById(`cf-row-${insId}-${cfIdx}`);
   if (!rowEl) return;
 
+  const inputStyle = "background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;";
   rowEl.innerHTML = `
-    <td><input type="date" id="cfe-date-${cfIdx}" value="${cf.date}" style="background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;"></td>
-    <td><input type="number" id="cfe-principal-${cfIdx}" value="${cf.principal}" step="0.01" style="background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;width:110px;"></td>
-    <td><input type="number" id="cfe-interest-${cfIdx}" value="${cf.interest}" step="0.01" style="background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:3px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;width:110px;"></td>
-    <td colspan="2">
+    <td><input type="date" id="cfe-date-${cfIdx}" value="${cf.date}" style="${inputStyle}"></td>
+    <td><input type="date" id="cfe-recdate-${cfIdx}" value="${cf.recordDate||''}" style="${inputStyle}" placeholder="Record date"></td>
+    <td><input type="number" id="cfe-principal-${cfIdx}" value="${cf.principal||0}" step="0.01" style="${inputStyle}width:100px;"></td>
+    <td><input type="number" id="cfe-interest-${cfIdx}" value="${cf.interest||0}" step="0.01" style="${inputStyle}width:100px;"></td>
+    <td><input type="text" id="cfe-notes-${cfIdx}" value="${cf.notes||''}" style="${inputStyle}width:120px;" placeholder="Notes"></td>
+    <td>
       <div class="edit-row-actions">
-        <button class="save" onclick="saveCashflowEdit(${insId},${cfIdx})">✓ Save</button>
+        <button class="save" onclick="saveCashflowEdit(${insId},${cfIdx})">✓</button>
         <button class="cancel" onclick="refresh()">✕</button>
         <button onclick="deleteCashflowRow(${insId},${cfIdx})" style="color:var(--red);border-color:var(--red);">🗑</button>
       </div>
@@ -2783,7 +2846,9 @@ function saveCashflowEdit(insId, cfIdx) {
   const principal = parseFloat(document.getElementById(`cfe-principal-${cfIdx}`)?.value) || 0;
   const interest  = parseFloat(document.getElementById(`cfe-interest-${cfIdx}`)?.value)  || 0;
   if (!date) { toast('Date is required', 'warn'); return; }
-  ins.cashflows[cfIdx] = { date, principal, interest };
+  const recordDate = document.getElementById(`cfe-recdate-${cfIdx}`)?.value || '';
+  const notes      = document.getElementById(`cfe-notes-${cfIdx}`)?.value   || '';
+  ins.cashflows[cfIdx] = { date, principal, interest, recordDate, notes };
   persistInstruments();
   refresh();
   toast('Cashflow row updated ✓', 'success');
@@ -2805,25 +2870,29 @@ function renderInstrumentCashflowTable(ins) {
   const rows  = computeRows(ins);
   if (!rows.length) return '<div style="color:var(--muted);font-size:12px;padding:10px;">No cashflows.</div>';
 
-  return `<div class="table-wrap"><table>
+  return `<div class="table-wrap" style="max-height:360px;overflow-y:auto;"><table>
     <thead><tr>
-      <th>Date</th><th>Principal</th><th>Interest</th>
-      <th>Net (after TDS)</th><th>Status</th><th style="width:60px;"></th>
+      <th>Payment Date</th><th style="color:var(--yellow)">Record Date</th>
+      <th>Principal</th><th>Interest</th>
+      <th>Net (after TDS)</th><th>Notes</th><th>Status</th><th style="width:40px;"></th>
     </tr></thead>
     <tbody>
     ${ins.cashflows.map((cf, cfIdx) => {
       const d   = new Date(cf.date);
-      const tds = cf.interest > 0 ? cf.interest * (ins.tdsRate||0.1) : 0;
+      const tds = (cf.interest||0) > 0 ? (cf.interest||0) * (ins.tdsRate||0.1) : 0;
       const net = (cf.principal||0) + (cf.interest||0) - tds;
       const past = cf.date <= today.toISOString().slice(0,10);
-      return `<tr id="cf-row-${ins.id}-${cfIdx}" class="${past?'row-past':''}" style="${(cf.principal||0)<0?'background:rgba(248,113,113,0.04);':''}">
+      const isInvestment = (cf.principal||0) < 0;
+      return `<tr id="cf-row-${ins.id}-${cfIdx}" class="${past&&!isInvestment?'row-past':''}" style="${isInvestment?'background:rgba(248,113,113,0.04);':''}">
         <td class="date-col">${fmtDate(d)}</td>
-        <td style="text-align:right;font-size:11px;color:${(cf.principal||0)<0?'var(--red)':(cf.principal||0)>0?'var(--green)':'var(--muted)'}">
+        <td class="date-col" style="color:var(--yellow);font-size:10px;">${cf.recordDate ? fmtDate(new Date(cf.recordDate)) : '—'}</td>
+        <td style="text-align:right;font-size:11px;color:${isInvestment?'var(--red)':(cf.principal||0)>0?'var(--green)':'var(--muted)'}">
           ${(cf.principal||0)!==0?fmtCcy(cf.principal):'-'}
         </td>
         <td style="text-align:right;font-size:11px;color:var(--green)">${(cf.interest||0)>0?fmtCcy(cf.interest):'-'}</td>
         <td style="text-align:right;font-size:11px;color:${net>0?'var(--green)':net<0?'var(--red)':'var(--muted)'}">${fmtCcy(net)}</td>
-        <td style="font-size:10px;text-align:center;">${past?'<span style="color:var(--muted);">Past</span>':'<span style="color:var(--green);">Upcoming</span>'}</td>
+        <td style="font-size:10px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;">${cf.notes||'—'}</td>
+        <td style="font-size:10px;text-align:center;">${isInvestment?'<span style="color:var(--red);">Investment</span>':past?'<span style="color:var(--muted);">Past</span>':'<span style="color:var(--green);">Upcoming</span>'}</td>
         <td><button onclick="editCashflowInstrument(${ins.id},${cfIdx})" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;" title="Edit row">✎</button></td>
       </tr>`;
     }).join('')}
@@ -2957,94 +3026,149 @@ function openPVModal(insId) {
   const ins = instruments.find(i => i.id === insId);
   if (!ins) return;
   document.getElementById('pv-modal-title').textContent = `📐 ${ins.name} — Present Value & YTM`;
-  document.getElementById('pv-date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('pv-market-price').value = '';
-  document.getElementById('pv-discount').value = '12';
+  document.getElementById('pv-date').value          = new Date().toISOString().slice(0,10);
+  document.getElementById('pv-market-price').value  = '';
+  document.getElementById('pv-discount').value      = '12';
+  // Pre-fill purchase price from instrument
+  const pp = ins.purchasePrice || ins.faceValue || 0;
+  document.getElementById('pv-purchase-price').value = pp > 0 ? pp : '';
   document.getElementById('pv-modal').classList.add('open');
   calcPV();
+}
+
+// Newton-Raphson YTM solver
+function solveYTM(cashflows, price, valuationDate) {
+  const valD = new Date(valuationDate);
+  let ytm = 0.12;
+  for (let i = 0; i < 200; i++) {
+    let f = 0, df = 0;
+    cashflows.forEach(cf => {
+      const d   = new Date(cf.date);
+      const yrs = (d - valD) / (365.25 * 86400000);
+      if (yrs <= 0) return;
+      const amt = (cf.principal||0) + (cf.interest||0);
+      f  += amt / Math.pow(1 + ytm, yrs);
+      df -= yrs * amt / Math.pow(1 + ytm, yrs + 1);
+    });
+    f -= price;
+    if (Math.abs(df) < 1e-12) break;
+    const delta = f / df;
+    ytm -= delta;
+    if (Math.abs(delta) < 1e-9) break;
+  }
+  return ytm;
 }
 
 function calcPV() {
   const ins = pvInstrumentId ? instruments.find(i => i.id === pvInstrumentId) : null;
   if (!ins) return;
 
-  const discountRate  = (parseFloat(document.getElementById('pv-discount').value) || 12) / 100;
-  const valuationDate = document.getElementById('pv-date').value;
-  const marketPrice   = parseFloat(document.getElementById('pv-market-price').value) || 0;
+  const discountRate   = (parseFloat(document.getElementById('pv-discount').value) || 12) / 100;
+  const valuationDate  = document.getElementById('pv-date').value;
+  const marketPriceEl  = parseFloat(document.getElementById('pv-market-price').value)  || 0;
+  const purchasePrice  = parseFloat(document.getElementById('pv-purchase-price').value) ||
+                         ins.purchasePrice || ins.faceValue || 0;
   if (!valuationDate) return;
 
   const valD   = new Date(valuationDate);
-  const future = ins.cashflows.filter(cf => cf.date > valuationDate && ((cf.principal||0) > 0 || (cf.interest||0) > 0));
+  const future = ins.cashflows.filter(cf => cf.date > valuationDate &&
+    ((cf.principal||0) > 0 || (cf.interest||0) > 0));
+
+  const set = (id, txt, col) => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = txt; if (col) el.style.color = col; }
+  };
+  const fmt = n => '₹' + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
   if (!future.length) {
-    document.getElementById('pv-result').textContent = '—';
-    document.getElementById('pv-ytm').textContent    = 'No future cashflows';
+    set('pv-result', '—'); set('pv-ytm', 'No future cashflows');
     return;
   }
 
-  // Present Value (DCF)
-  let pv = 0;
-  let weightedTime = 0;
+  // ── DCF Present Value ──
+  let pv = 0, weightedTime = 0;
   future.forEach(cf => {
-    const d    = new Date(cf.date);
-    const yrs  = (d - valD) / (365.25 * 86400000);
-    const cf_  = (cf.principal||0) + (cf.interest||0);
-    const disc = cf_ / Math.pow(1 + discountRate, yrs);
-    pv            += disc;
-    weightedTime  += disc * yrs;
+    const d   = new Date(cf.date);
+    const yrs = (d - valD) / (365.25 * 86400000);
+    const amt = (cf.principal||0) + (cf.interest||0);
+    const disc = amt / Math.pow(1 + discountRate, yrs);
+    pv           += disc;
+    weightedTime += disc * yrs;
   });
 
-  // Duration (Macaulay)
-  const duration = pv > 0 ? weightedTime / pv : 0;
-  // Modified duration
+  // ── Duration ──
+  const duration    = pv > 0 ? weightedTime / pv : 0;
   const modDuration = duration / (1 + discountRate);
 
-  // Accrued interest (last paid coupon to valuation date)
-  const past = ins.cashflows.filter(cf => cf.date <= valuationDate && (cf.interest||0) > 0);
+  // ── Accrued Interest ──
   let accrued = 0;
-  if (past.length > 0) {
-    const lastPaid = new Date(past[past.length-1].date);
-    // Find next coupon
-    const next = ins.cashflows.find(cf => cf.date > valuationDate && (cf.interest||0) > 0);
-    if (next) {
-      const nextD   = new Date(next.date);
+  const pastCoupons = ins.cashflows.filter(cf =>
+    cf.date <= valuationDate && (cf.interest||0) > 0);
+  if (pastCoupons.length > 0) {
+    const lastPaid = new Date(pastCoupons[pastCoupons.length-1].date);
+    const nextCoupon = ins.cashflows.find(cf => cf.date > valuationDate && (cf.interest||0) > 0);
+    if (nextCoupon) {
+      const nextD   = new Date(nextCoupon.date);
       const period  = (nextD - lastPaid) / 86400000;
-      const elapsed = (valD - lastPaid) / 86400000;
-      accrued = period > 0 ? (next.interest || 0) * (elapsed / period) : 0;
+      const elapsed = (valD  - lastPaid) / 86400000;
+      accrued = period > 0 ? (nextCoupon.interest||0) * (elapsed / period) : 0;
     }
   }
 
   const cleanPrice = pv - accrued;
 
-  // YTM — Newton-Raphson iteration
-  let ytm = discountRate;
-  for (let iter = 0; iter < 100; iter++) {
-    let f  = 0, df = 0;
-    const price = marketPrice > 0 ? marketPrice * (ins.units || 1) : pv;
-    future.forEach(cf => {
-      const d   = new Date(cf.date);
-      const yrs = (d - valD) / (365.25 * 86400000);
-      const cf_ = (cf.principal||0) + (cf.interest||0);
-      f  += cf_ / Math.pow(1 + ytm, yrs);
-      df -= yrs * cf_ / Math.pow(1 + ytm, yrs + 1);
-    });
-    f -= price;
-    if (Math.abs(df) < 1e-10) break;
-    const delta = f / df;
-    ytm -= delta;
-    if (Math.abs(delta) < 1e-8) break;
+  // ── YTM at purchase price ──
+  const units = ins.units || 1;
+  const totalPurchaseCost = purchasePrice > 0
+    ? purchasePrice * units + (ins.accruedPaid || 0)
+    : null;
+  const effectivePrice = marketPriceEl > 0
+    ? marketPriceEl * units
+    : totalPurchaseCost || pv;
+
+  const ytmPurchase = solveYTM(future, effectivePrice, valuationDate);
+
+  // ── YTM at face value ──
+  const totalFaceValue = (ins.faceValue || 1000) * units;
+  const ytmFace = solveYTM(future, totalFaceValue, valuationDate);
+
+  // ── Gain/Loss vs purchase ──
+  const dirtyPrice = purchasePrice > 0 ? purchasePrice * units + (ins.accruedPaid||0) : null;
+  const pvGain     = dirtyPrice ? pv - dirtyPrice : null;
+
+  // ── Unrealised P&L ──
+  const currentMV = marketPriceEl > 0 ? marketPriceEl * units : pv;
+  const pnl       = dirtyPrice ? currentMV - dirtyPrice : null;
+
+  // ── Display ──
+  set('pv-result',       fmt(pv),                             'var(--accent)');
+  set('pv-ytm',          (ytmPurchase*100).toFixed(4) + '%',  ytmPurchase >= 0 ? 'var(--green)' : 'var(--red)');
+  set('pv-ytm-face',     (ytmFace*100).toFixed(4) + '%',      'var(--yellow)');
+  set('pv-duration',     duration.toFixed(3) + ' yrs',        'var(--muted)');
+  set('pv-mod-duration', modDuration.toFixed(3),              'var(--muted)');
+  set('pv-accrued',      fmt(accrued),                        'var(--muted)');
+  set('pv-clean',        fmt(cleanPrice),                     'var(--text)');
+  set('pv-dirty',        dirtyPrice ? fmt(dirtyPrice) : '—',  'var(--red)');
+
+  if (pvGain !== null) {
+    set('pv-gain', (pvGain >= 0 ? '+' : '-') + fmt(pvGain),  pvGain >= 0 ? 'var(--green)' : 'var(--red)');
+  } else {
+    set('pv-gain', '—');
+  }
+  if (pnl !== null) {
+    set('pv-pnl', (pnl >= 0 ? '+' : '-') + fmt(pnl), pnl >= 0 ? 'var(--green)' : 'var(--red)');
+  } else {
+    set('pv-pnl', '—');
   }
 
-  const fmt2 = n => '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-  document.getElementById('pv-result').textContent     = fmt2(pv);
-  document.getElementById('pv-ytm').textContent        = (ytm * 100).toFixed(4) + '%';
-  document.getElementById('pv-duration').textContent   = duration.toFixed(3) + ' yrs';
-  document.getElementById('pv-mod-duration').textContent = modDuration.toFixed(3);
-  document.getElementById('pv-accrued').textContent    = fmt2(accrued);
-  document.getElementById('pv-clean').textContent      = fmt2(cleanPrice);
-  document.getElementById('pv-cashflow-count').textContent =
-    `Based on ${future.length} future cashflow${future.length!==1?'s':''} · Valuation date: ${valuationDate}${marketPrice>0?' · Market price used for YTM: ₹'+marketPrice.toLocaleString('en-IN'):''}`;
+  document.getElementById('pv-cashflow-count').innerHTML = `
+    <strong style="color:var(--text);">${future.length}</strong> future cashflow${future.length!==1?'s':''} &nbsp;·&nbsp;
+    Valuation: <strong style="color:var(--text);">${valuationDate}</strong> &nbsp;·&nbsp;
+    ${purchasePrice > 0 ? `Purchase price: <strong style="color:var(--text);">₹${purchasePrice.toLocaleString('en-IN')}/unit</strong> &nbsp;·&nbsp; Total cost: <strong style="color:var(--red);">₹${(purchasePrice*units).toLocaleString('en-IN')}</strong>` : 'No purchase price set — using face value for YTM'}
+    ${ins.accruedPaid > 0 ? ` &nbsp;·&nbsp; Accrued interest paid: <strong style="color:var(--yellow);">₹${ins.accruedPaid.toLocaleString('en-IN')}</strong>` : ''}`;
 }
+
+
 
 document.getElementById('pv-modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal('pv-modal');
@@ -3234,6 +3358,29 @@ function parseFlexDate(str) {
 
 
 
+
+// ── Dirty price calculator (runs when units/purchase price/accrued change) ──
+function calcDirtyPrice() {
+  const units    = parseInt(document.getElementById('f-units')?.value) || 1;
+  const pp       = parseFloat(document.getElementById('f-purchase-price')?.value) || 0;
+  const accrued  = parseFloat(document.getElementById('f-accrued-paid')?.value)   || 0;
+  const dirtyEl  = document.getElementById('f-dirty-price');
+  if (dirtyEl) {
+    const dirty = pp > 0 ? (pp * units + accrued) : 0;
+    dirtyEl.value = dirty > 0 ? dirty.toFixed(2) : '';
+    dirtyEl.placeholder = dirty > 0 ? '' : 'Auto-calculated';
+  }
+  // Also sync purchase date to PV modal if open
+  const pd = document.getElementById('f-purchase-date')?.value;
+  const pvDate = document.getElementById('pv-date');
+  if (pvDate && pd && !pvDate.value) pvDate.value = pd;
+}
+
+// Wire oninput events for dirty price calc
+['f-purchase-price','f-accrued-paid'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', calcDirtyPrice);
+});
 
 // ===================== THEME TOGGLE =====================
 function initTheme() {
