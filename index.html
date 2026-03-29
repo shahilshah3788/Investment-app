@@ -1688,7 +1688,7 @@ function renderIndividual() {
         + ' | ₹'+((dirtyTotal/((fv*u)))*100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'/₹100</span>'
       : '';
     var isinSpan = ins.isins && ins.isins.length
-      ? '<span style="font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;">'+ins.isins.join(', ')+'</span>' : '';
+      ? '<span style="font-size:9px;color:var(--muted);font-family:\'DM Mono\',monospace;">'+ins.isins.join(', ')+'</span>' : '';
     var ratingBadge = ins.creditRating && ins.creditRating.rating
       ? '<span class="rating-badge '+getRatingClass(ins.creditRating.rating)+'">'+ins.creditRating.rating+'</span>' : '';
 
@@ -1696,7 +1696,7 @@ function renderIndividual() {
       + '<div style="background:var(--surface2);padding:12px 16px;">'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
       + '<div>'
-      + '<span style="font-family:'Playfair Display',serif;font-size:15px;color:var(--accent);">'+ins.name+'</span>'
+      + '<span style="font-family:\'Playfair Display\',serif;font-size:15px;color:var(--accent);">'+ins.name+'</span>'
       + ' ' + ratingBadge + ' ' + isinSpan
       + '<div style="margin-top:4px;font-size:10px;color:var(--muted);">'
       + ins.type + ' &nbsp;·&nbsp; '
@@ -1707,9 +1707,9 @@ function renderIndividual() {
       + '</div>'
       + '</div>'
       + '<div style="display:flex;gap:6px;flex-shrink:0;">'
-      + '<button onclick="openAddModal(''+ins.id+'')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">✎ Edit</button>'
-      + '<button onclick="openPVModal(''+ins.id+'')" style="background:none;border:1px solid rgba(91,141,238,0.3);color:var(--accent2);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">📐 PV/YTM/XIRR</button>'
-      + '<button onclick="addNewCashflowRow(''+ins.id+'')" style="background:none;border:1px solid rgba(74,222,128,0.3);color:var(--green);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;">+ Add Row</button>'
+      + '<button onclick="openAddModal(\''+ins.id+'\')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:\'DM Mono\',monospace;font-size:9px;">✎ Edit</button>'
+      + '<button onclick="openPVModal(\''+ins.id+'\')" style="background:none;border:1px solid rgba(91,141,238,0.3);color:var(--accent2);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:\'DM Mono\',monospace;font-size:9px;">📐 PV/YTM/XIRR</button>'
+      + '<button onclick="addNewCashflowRow(\''+ins.id+'\')" style="background:none;border:1px solid rgba(74,222,128,0.3);color:var(--green);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:\'DM Mono\',monospace;font-size:9px;">+ Add Row</button>'
       + '</div>'
       + '</div>'
       + '</div>'
