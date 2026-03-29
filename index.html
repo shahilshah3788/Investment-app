@@ -977,22 +977,55 @@ or
     </div>
     <div class="pv-section">
       <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Results</div>
+      <!-- Per-unit and per-100 input toggle -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;font-size:10px;color:var(--muted);">
+        <span>Display: </span>
+        <label style="cursor:pointer;"><input type="radio" name="pv-display" value="total" checked onchange="calcPV()"> Total</label>
+        <label style="cursor:pointer;"><input type="radio" name="pv-display" value="unit" onchange="calcPV()"> Per Unit</label>
+        <label style="cursor:pointer;"><input type="radio" name="pv-display" value="100" onchange="calcPV()"> Per ₹100 Face</label>
+      </div>
       <div class="pv-grid">
         <div class="pv-item">
           <div class="pv-label">Present Value (DCF)</div>
           <div class="pv-value" id="pv-result" style="color:var(--accent);">—</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;" id="pv-result-sub"></div>
         </div>
         <div class="pv-item">
-          <div class="pv-label">YTM (at purchase price)</div>
+          <div class="pv-label">XIRR (on actual cashflows)</div>
+          <div class="pv-value" id="pv-xirr" style="color:var(--green);">—</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">incl. investment outflow</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">YTM (at purchase / dirty price)</div>
           <div class="pv-value" id="pv-ytm" style="color:var(--accent2);">—</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;" id="pv-ytm-sub"></div>
         </div>
         <div class="pv-item">
           <div class="pv-label">YTM (at face value)</div>
           <div class="pv-value" id="pv-ytm-face" style="color:var(--yellow);">—</div>
         </div>
         <div class="pv-item">
-          <div class="pv-label">Gain / (Loss) vs Purchase</div>
+          <div class="pv-label">Dirty Price (Purchase + AI)</div>
+          <div class="pv-value" id="pv-dirty" style="color:var(--red);">—</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;" id="pv-dirty-sub"></div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Clean Price (Dirty − AI)</div>
+          <div class="pv-value" id="pv-clean" style="color:var(--text);">—</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;" id="pv-clean-sub"></div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Accrued Interest (at valuation)</div>
+          <div class="pv-value" id="pv-accrued" style="color:var(--muted);">—</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;" id="pv-accrued-sub"></div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Gain / (Loss) vs Dirty Price</div>
           <div class="pv-value" id="pv-gain" style="color:var(--green);">—</div>
+        </div>
+        <div class="pv-item">
+          <div class="pv-label">Unrealised P&L</div>
+          <div class="pv-value" id="pv-pnl" style="color:var(--green);">—</div>
         </div>
         <div class="pv-item">
           <div class="pv-label">Macaulay Duration</div>
@@ -1001,22 +1034,6 @@ or
         <div class="pv-item">
           <div class="pv-label">Modified Duration</div>
           <div class="pv-value" id="pv-mod-duration" style="color:var(--muted);">—</div>
-        </div>
-        <div class="pv-item">
-          <div class="pv-label">Accrued Interest</div>
-          <div class="pv-value" id="pv-accrued" style="color:var(--muted);">—</div>
-        </div>
-        <div class="pv-item">
-          <div class="pv-label">Clean Price (PV - AI)</div>
-          <div class="pv-value" id="pv-clean" style="color:var(--text);">—</div>
-        </div>
-        <div class="pv-item">
-          <div class="pv-label">Total Cost (Dirty Price)</div>
-          <div class="pv-value" id="pv-dirty" style="color:var(--red);">—</div>
-        </div>
-        <div class="pv-item">
-          <div class="pv-label">Unrealised P&L</div>
-          <div class="pv-value" id="pv-pnl" style="color:var(--green);">—</div>
         </div>
       </div>
     </div>
@@ -2996,47 +3013,104 @@ function deleteCashflowRow(insId, cfIdx) {
 
 // Render individual instrument cashflows with edit buttons
 function renderInstrumentCashflowTable(ins) {
-  const today = getToday();
-  const rows  = computeRows(ins);
-  if (!rows.length) return '<div style="color:var(--muted);font-size:12px;padding:10px;">No cashflows.</div>';
-
-  const fv = ins.faceValue || 1000;
-  const u  = ins.units    || 1;
+  const today    = getToday();
+  const todayStr = today.toISOString().slice(0,10);
+  const fv       = ins.faceValue || 1000;
+  const u        = ins.units     || 1;
   const totalFace = fv * u;
-  return `<div class="table-wrap" style="max-height:360px;overflow-y:auto;"><table>
-    <thead>
-      <tr>
-        <th>Payment Date</th><th style="color:var(--yellow)">Record Date</th>
-        <th>Principal</th><th>Interest</th>
-        <th style="color:var(--accent2)">Per Unit</th>
-        <th style="color:var(--yellow)">Per ₹100</th>
-        <th>Net (after TDS)</th><th>Notes</th><th>Status</th><th style="width:40px;"></th>
-      </tr>
-    </thead>
-    <tbody>
-    ${ins.cashflows.map((cf, cfIdx) => {
-      const d   = new Date(cf.date);
-      const tds = (cf.interest||0) > 0 ? (cf.interest||0) * (ins.tdsRate||0.1) : 0;
-      const net = (cf.principal||0) + (cf.interest||0) - tds;
-      const past = cf.date <= today.toISOString().slice(0,10);
-      const isInvestment = (cf.principal||0) < 0;
-      return `<tr id="cf-row-${ins.id}-${cfIdx}" class="${past&&!isInvestment?'row-past':''}" style="${isInvestment?'background:rgba(248,113,113,0.04);':''}">
-        <td class="date-col">${fmtDate(d)}</td>
-        <td class="date-col" style="color:var(--yellow);font-size:10px;">${cf.recordDate ? fmtDate(new Date(cf.recordDate)) : '—'}</td>
-        <td style="text-align:right;font-size:11px;color:${isInvestment?'var(--red)':(cf.principal||0)>0?'var(--green)':'var(--muted)'}">
-          ${(cf.principal||0)!==0?fmtCcy(cf.principal):'-'}
-        </td>
-        <td style="text-align:right;font-size:11px;color:var(--green)">${(cf.interest||0)>0?fmtCcy(cf.interest):'-'}</td>
-        <td style="text-align:right;font-size:10px;color:var(--accent2);">${(cf.interest||0)+(cf.principal||0)!==0?fmtPerUnit((cf.interest||0)+(cf.principal||0),u):'–'}</td>
-        <td style="text-align:right;font-size:10px;color:var(--yellow);">${(cf.interest||0)+(cf.principal||0)!==0?fmtPer100raw((cf.interest||0)+(cf.principal||0),totalFace):'–'}</td>
-        <td style="text-align:right;font-size:11px;color:${net>0?'var(--green)':net<0?'var(--red)':'var(--muted)'}">${fmtCcy(net)}</td>
-        <td style="font-size:10px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;">${cf.notes||'—'}</td>
-        <td style="font-size:10px;text-align:center;">${isInvestment?'<span style="color:var(--red);">Investment</span>':past?'<span style="color:var(--muted);">Past</span>':'<span style="color:var(--green);">Upcoming</span>'}</td>
-        <td><button onclick="editCashflowInstrument('${ins.id}',${cfIdx})" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;" title="Edit row">✎</button></td>
-      </tr>`;
-    }).join('')}
-    </tbody>
-  </table></div>`;
+  const pp       = ins.purchasePrice || 0;
+  const ai       = ins.accruedPaid   || 0;
+  const dirtyTotal = pp > 0 ? (pp * u + ai) : 0;
+  const cleanTotal = pp > 0 ? pp * u : 0;
+
+  if (!ins.cashflows.length) {
+    return '<div style="color:var(--muted);font-size:12px;padding:14px;">No cashflows yet. Click + Row to add one.</div>';
+  }
+
+  // Purchase price / dirty price summary banner
+  var summaryBanner = '';
+  if (pp > 0) {
+    var cleanPer100  = ((cleanTotal / totalFace) * 100).toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+    var dirtyPer100  = ((dirtyTotal / totalFace) * 100).toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+    var aiPer100     = ((ai / totalFace) * 100).toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+    summaryBanner = '<div style="background:rgba(248,113,113,0.06);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;gap:16px;flex-wrap:wrap;font-size:10px;">'
+      + '<span>💰 <strong>Clean Price:</strong> ₹' + pp.toLocaleString('en-IN',{maximumFractionDigits:2}) + '/unit'
+      + ' &nbsp;|&nbsp; ₹' + cleanTotal.toLocaleString('en-IN',{maximumFractionDigits:2}) + ' total'
+      + ' &nbsp;|&nbsp; <span style="color:var(--yellow);">₹' + cleanPer100 + '/₹100</span></span>'
+      + (ai > 0 ? '<span>➕ <strong>Accrued Int Paid:</strong> ₹' + ai.toLocaleString('en-IN',{maximumFractionDigits:2})
+        + ' &nbsp;|&nbsp; <span style="color:var(--yellow);">₹' + aiPer100 + '/₹100</span></span>' : '')
+      + '<span>🔴 <strong>Dirty Price:</strong> ₹' + (dirtyTotal/u).toLocaleString('en-IN',{maximumFractionDigits:2}) + '/unit'
+      + ' &nbsp;|&nbsp; ₹' + dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:2}) + ' total'
+      + ' &nbsp;|&nbsp; <span style="color:var(--yellow);">₹' + dirtyPer100 + '/₹100</span></span>'
+      + '</div>';
+  }
+
+  // Build rows
+  var rows = ins.cashflows.map(function(cf, cfIdx) {
+    var d   = new Date(cf.date);
+    var p   = cf.principal || 0;
+    var int = cf.interest  || 0;
+    var tds = int > 0 ? int * (ins.tdsRate || 0.1) : 0;
+    var net = p + int - tds;
+    var past  = cf.date <= todayStr;
+    var isInv = p < 0;
+    var pColor = isInv ? 'var(--red)' : (p > 0 ? 'var(--green)' : 'var(--muted)');
+    var netColor = net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'var(--muted)';
+    var rowClass = (past && !isInv) ? 'row-past' : '';
+    var rowBg    = isInv ? 'background:rgba(248,113,113,0.05);' : '';
+
+    // Record date — safe parse
+    var rdStr = '—';
+    if (cf.recordDate) {
+      try { rdStr = fmtDate(new Date(cf.recordDate)); } catch(e) { rdStr = cf.recordDate; }
+    }
+
+    // Per unit values
+    var pPerUnit   = p   !== 0 ? fmtPerUnit(p,   u) : '–';
+    var intPerUnit = int > 0   ? fmtPerUnit(int, u) : '';
+    var pPer100    = p   !== 0 ? fmtPer100raw(p,   totalFace) : '–';
+    var intPer100  = int > 0   ? fmtPer100raw(int, totalFace) : '';
+    var netPer100  = net !== 0 ? fmtPer100raw(net, totalFace) : '–';
+
+    var perUnitCell = pPerUnit
+      + (intPerUnit ? '<br><span style="color:var(--muted);font-size:9px;">' + intPerUnit + '</span>' : '');
+    var per100Cell = pPer100
+      + (intPer100 ? '<br><span style="color:var(--muted);font-size:9px;">' + intPer100 + '</span>' : '');
+
+    var editBtn = '<button onclick="editCashflowInstrument(\'' + ins.id + '\',' + cfIdx + ')"'
+      + ' style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;" title="Edit row">✎</button>';
+
+    return '<tr id="cf-row-' + ins.id + '-' + cfIdx + '" class="' + rowClass + '" style="' + rowBg + '">'
+      + '<td class="date-col" style="white-space:nowrap;">' + fmtDate(d) + '</td>'
+      + '<td class="date-col" style="color:var(--yellow);font-size:10px;white-space:nowrap;">' + rdStr + '</td>'
+      + '<td style="text-align:right;font-size:11px;color:' + pColor + ';">' + (p !== 0 ? fmtCcy(p) : '–') + '</td>'
+      + '<td style="text-align:right;font-size:11px;color:var(--green);">' + (int > 0 ? fmtCcy(int) : '–') + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">' + perUnitCell + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">' + per100Cell + '</td>'
+      + '<td style="text-align:right;font-size:11px;color:' + netColor + ';">' + (net !== 0 ? fmtCcy(net) : '–') + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">' + netPer100 + '</td>'
+      + '<td style="font-size:10px;color:var(--muted);max-width:90px;overflow:hidden;text-overflow:ellipsis;">' + (cf.notes || '—') + '</td>'
+      + '<td>' + editBtn + '</td>'
+      + '</tr>';
+  }).join('');
+
+  var thead = '<thead><tr>'
+    + '<th>Payment Date</th>'
+    + '<th style="color:var(--yellow);">Record Date</th>'
+    + '<th>Principal (Total)</th>'
+    + '<th>Interest (Total)</th>'
+    + '<th style="color:var(--accent2);">Per Unit<br><span style="font-weight:400;font-size:8px;color:var(--muted);">principal / interest</span></th>'
+    + '<th style="color:var(--yellow);">Per ₹100 Face<br><span style="font-weight:400;font-size:8px;color:var(--muted);">principal / interest</span></th>'
+    + '<th>Net after TDS</th>'
+    + '<th style="color:var(--yellow);">Net/₹100</th>'
+    + '<th>Notes</th>'
+    + '<th style="width:40px;"></th>'
+    + '</tr></thead>';
+
+  return summaryBanner
+    + '<div class="table-wrap" style="max-height:420px;overflow-y:auto;"><table>'
+    + thead + '<tbody>' + rows + '</tbody>'
+    + '</table></div>';
 }
 
 // ===================== PLAYCARD DRILL-DOWN =====================
@@ -3199,28 +3273,46 @@ function solveYTM(cashflows, price, valuationDate) {
 }
 
 function calcPV() {
-  const ins = pvInstrumentId ? instruments.find(i => i.id === pvInstrumentId) : null;
+  const ins = pvInstrumentId ? instruments.find(i => String(i.id) === String(pvInstrumentId)) : null;
   if (!ins) return;
 
-  const discountRate   = (parseFloat(document.getElementById('pv-discount').value) || 12) / 100;
-  const valuationDate  = document.getElementById('pv-date').value;
-  const marketPriceEl  = parseFloat(document.getElementById('pv-market-price').value)  || 0;
-  const purchasePrice  = parseFloat(document.getElementById('pv-purchase-price').value) ||
-                         ins.purchasePrice || ins.faceValue || 0;
+  const discountRate  = (parseFloat(document.getElementById('pv-discount').value) || 12) / 100;
+  const valuationDate = document.getElementById('pv-date').value;
+  const marketPriceEl = parseFloat(document.getElementById('pv-market-price').value) || 0;
+  const purchasePriceEl = parseFloat(document.getElementById('pv-purchase-price').value) || ins.purchasePrice || 0;
+  const displayMode   = document.querySelector('input[name="pv-display"]:checked')?.value || 'total';
   if (!valuationDate) return;
 
-  const valD   = new Date(valuationDate);
-  const future = ins.cashflows.filter(cf => cf.date > valuationDate &&
-    ((cf.principal||0) > 0 || (cf.interest||0) > 0));
+  const units     = ins.units     || 1;
+  const faceValue = ins.faceValue || 1000;
+  const totalFace = faceValue * units;
+  const valD      = new Date(valuationDate);
+
+  // All positive future cashflows (inflows)
+  const future = ins.cashflows.filter(cf =>
+    cf.date > valuationDate && ((cf.principal||0) > 0 || (cf.interest||0) > 0));
 
   const set = (id, txt, col) => {
     const el = document.getElementById(id);
     if (el) { el.textContent = txt; if (col) el.style.color = col; }
   };
-  const fmt = n => '₹' + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  const setSub = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+
+  // Display formatter based on mode
+  const disp = (total) => {
+    if (!total || isNaN(total)) return '—';
+    if (displayMode === 'unit')  return '₹' + (Math.abs(total)/units).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}) + '/unit';
+    if (displayMode === '100')   return '₹' + ((Math.abs(total)/totalFace)*100).toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4}) + '/₹100';
+    return '₹' + Math.abs(total).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  };
+  const dispSgn = (total) => {
+    if (!total || isNaN(total)) return '—';
+    const sign = total >= 0 ? '+' : '-';
+    return sign + disp(total);
+  };
 
   if (!future.length) {
-    set('pv-result', '—'); set('pv-ytm', 'No future cashflows');
+    set('pv-result', '—'); set('pv-xirr', '—'); set('pv-ytm', 'No future cashflows');
     return;
   }
 
@@ -3229,7 +3321,8 @@ function calcPV() {
   future.forEach(cf => {
     const d   = new Date(cf.date);
     const yrs = (d - valD) / (365.25 * 86400000);
-    const amt = (cf.principal||0) + (cf.interest||0);
+    if (yrs <= 0) return;
+    const amt  = (cf.principal||0) + (cf.interest||0);
     const disc = amt / Math.pow(1 + discountRate, yrs);
     pv           += disc;
     weightedTime += disc * yrs;
@@ -3239,72 +3332,84 @@ function calcPV() {
   const duration    = pv > 0 ? weightedTime / pv : 0;
   const modDuration = duration / (1 + discountRate);
 
-  // ── Accrued Interest ──
+  // ── Accrued Interest at valuation date ──
   let accrued = 0;
-  const pastCoupons = ins.cashflows.filter(cf =>
-    cf.date <= valuationDate && (cf.interest||0) > 0);
-  if (pastCoupons.length > 0) {
+  const pastCoupons = ins.cashflows.filter(cf => cf.date <= valuationDate && (cf.interest||0) > 0);
+  const nextCoupon  = ins.cashflows.find(cf => cf.date > valuationDate && (cf.interest||0) > 0);
+  if (pastCoupons.length > 0 && nextCoupon) {
     const lastPaid = new Date(pastCoupons[pastCoupons.length-1].date);
-    const nextCoupon = ins.cashflows.find(cf => cf.date > valuationDate && (cf.interest||0) > 0);
-    if (nextCoupon) {
-      const nextD   = new Date(nextCoupon.date);
-      const period  = (nextD - lastPaid) / 86400000;
-      const elapsed = (valD  - lastPaid) / 86400000;
-      accrued = period > 0 ? (nextCoupon.interest||0) * (elapsed / period) : 0;
+    const nextD    = new Date(nextCoupon.date);
+    const period   = (nextD - lastPaid) / 86400000;
+    const elapsed  = (valD  - lastPaid) / 86400000;
+    accrued = period > 0 ? (nextCoupon.interest||0) * (elapsed / period) : 0;
+  }
+  const cleanPrice = pv - accrued;
+
+  // ── Dirty Price (what investor actually paid) ──
+  const purchasePrice = marketPriceEl > 0 ? marketPriceEl : purchasePriceEl;
+  const dirtyTotal = purchasePrice > 0 ? purchasePrice * units + (ins.accruedPaid||0) : 0;
+  const cleanTotal = purchasePrice > 0 ? purchasePrice * units : 0;
+
+  // ── YTM at purchase/dirty price (Newton-Raphson) ──
+  const effectivePrice = dirtyTotal > 0 ? dirtyTotal : pv;
+  const ytmPurchase = solveYTM(future, effectivePrice, valuationDate);
+  const ytmFace     = solveYTM(future, totalFace, valuationDate);
+
+  // ── XIRR: uses ALL cashflows including investment outflow ──
+  // Build cashflow array with the investment as a negative flow
+  const xirrCFs = [...ins.cashflows].map(cf => ({
+    date: cf.date,
+    amount: (cf.principal||0) + (cf.interest||0) - ((cf.interest||0)>0?(cf.interest||0)*(ins.tdsRate||0.1):0)
+  })).filter(cf => cf.amount !== 0);
+
+  let xirr = 0;
+  if (xirrCFs.length >= 2) {
+    // Newton-Raphson on all cashflows (including negatives)
+    const xirrValD = new Date(xirrCFs[0].date);
+    xirr = 0.12;
+    for (let iter = 0; iter < 200; iter++) {
+      let f = 0, df = 0;
+      xirrCFs.forEach(cf => {
+        const d   = new Date(cf.date);
+        const yrs = (d - xirrValD) / (365.25 * 86400000);
+        f  += cf.amount / Math.pow(1 + xirr, yrs);
+        df -= yrs * cf.amount / Math.pow(1 + xirr, yrs + 1);
+      });
+      if (Math.abs(df) < 1e-12) break;
+      const delta = f / df;
+      xirr -= delta;
+      if (Math.abs(delta) < 1e-9) break;
     }
   }
 
-  const cleanPrice = pv - accrued;
-
-  // ── YTM at purchase price ──
-  const units = ins.units || 1;
-  const totalPurchaseCost = purchasePrice > 0
-    ? purchasePrice * units + (ins.accruedPaid || 0)
-    : null;
-  const effectivePrice = marketPriceEl > 0
-    ? marketPriceEl * units
-    : totalPurchaseCost || pv;
-
-  const ytmPurchase = solveYTM(future, effectivePrice, valuationDate);
-
-  // ── YTM at face value ──
-  const totalFaceValue = (ins.faceValue || 1000) * units;
-  const ytmFace = solveYTM(future, totalFaceValue, valuationDate);
-
-  // ── Gain/Loss vs purchase ──
-  const dirtyPrice = purchasePrice > 0 ? purchasePrice * units + (ins.accruedPaid||0) : null;
-  const pvGain     = dirtyPrice ? pv - dirtyPrice : null;
-
-  // ── Unrealised P&L ──
+  // ── Gain/Loss ──
+  const pvGain = dirtyTotal > 0 ? pv - dirtyTotal : null;
   const currentMV = marketPriceEl > 0 ? marketPriceEl * units : pv;
-  const pnl       = dirtyPrice ? currentMV - dirtyPrice : null;
+  const pnl = dirtyTotal > 0 ? currentMV - dirtyTotal : null;
 
   // ── Display ──
-  set('pv-result',       fmt(pv),                             'var(--accent)');
-  set('pv-ytm',          (ytmPurchase*100).toFixed(4) + '%',  ytmPurchase >= 0 ? 'var(--green)' : 'var(--red)');
-  set('pv-ytm-face',     (ytmFace*100).toFixed(4) + '%',      'var(--yellow)');
-  set('pv-duration',     duration.toFixed(3) + ' yrs',        'var(--muted)');
+  set('pv-result',       disp(pv),                            'var(--accent)');
+  setSub('pv-result-sub', displayMode==='total' ? `Per unit: ₹${(pv/units).toLocaleString('en-IN',{maximumFractionDigits:2})} · Per ₹100: ₹${((pv/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}` : '');
+  set('pv-xirr',         xirr ? (xirr*100).toFixed(4)+'%' : '—', xirr > 0 ? 'var(--green)' : 'var(--red)');
+  set('pv-ytm',          (ytmPurchase*100).toFixed(4)+'%',    ytmPurchase >= 0 ? 'var(--accent2)' : 'var(--red)');
+  setSub('pv-ytm-sub', dirtyTotal > 0 ? `Dirty: ₹${(dirtyTotal/units).toLocaleString('en-IN',{maximumFractionDigits:2})}/unit` : 'No purchase price — using DCF as price');
+  set('pv-ytm-face',     (ytmFace*100).toFixed(4)+'%',        'var(--yellow)');
+  set('pv-dirty',        dirtyTotal > 0 ? disp(dirtyTotal) : '—', 'var(--red)');
+  setSub('pv-dirty-sub', dirtyTotal > 0 ? `Per ₹100: ₹${((dirtyTotal/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}` : '');
+  set('pv-clean',        dirtyTotal > 0 ? disp(cleanTotal) : disp(cleanPrice), 'var(--text)');
+  setSub('pv-clean-sub', dirtyTotal > 0 ? `Per ₹100: ₹${((cleanTotal/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}` : `Per ₹100: ₹${((cleanPrice/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}`);
+  set('pv-accrued',      disp(accrued),                       'var(--muted)');
+  setSub('pv-accrued-sub', accrued > 0 ? `Per ₹100: ₹${((accrued/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}` : '');
+  set('pv-gain',         pvGain !== null ? dispSgn(pvGain) : '—', pvGain === null ? 'var(--muted)' : pvGain >= 0 ? 'var(--green)' : 'var(--red)');
+  set('pv-pnl',          pnl !== null ? dispSgn(pnl) : '—',       pnl === null ? 'var(--muted)' : pnl >= 0 ? 'var(--green)' : 'var(--red)');
+  set('pv-duration',     duration.toFixed(3)+' yrs',          'var(--muted)');
   set('pv-mod-duration', modDuration.toFixed(3),              'var(--muted)');
-  set('pv-accrued',      fmt(accrued),                        'var(--muted)');
-  set('pv-clean',        fmt(cleanPrice),                     'var(--text)');
-  set('pv-dirty',        dirtyPrice ? fmt(dirtyPrice) : '—',  'var(--red)');
 
-  if (pvGain !== null) {
-    set('pv-gain', (pvGain >= 0 ? '+' : '-') + fmt(pvGain),  pvGain >= 0 ? 'var(--green)' : 'var(--red)');
-  } else {
-    set('pv-gain', '—');
-  }
-  if (pnl !== null) {
-    set('pv-pnl', (pnl >= 0 ? '+' : '-') + fmt(pnl), pnl >= 0 ? 'var(--green)' : 'var(--red)');
-  } else {
-    set('pv-pnl', '—');
-  }
-
-  document.getElementById('pv-cashflow-count').innerHTML = `
-    <strong style="color:var(--text);">${future.length}</strong> future cashflow${future.length!==1?'s':''} &nbsp;·&nbsp;
-    Valuation: <strong style="color:var(--text);">${valuationDate}</strong> &nbsp;·&nbsp;
-    ${purchasePrice > 0 ? `Purchase price: <strong style="color:var(--text);">₹${purchasePrice.toLocaleString('en-IN')}/unit</strong> &nbsp;·&nbsp; Total cost: <strong style="color:var(--red);">₹${(purchasePrice*units).toLocaleString('en-IN')}</strong>` : 'No purchase price set — using face value for YTM'}
-    ${ins.accruedPaid > 0 ? ` &nbsp;·&nbsp; Accrued interest paid: <strong style="color:var(--yellow);">₹${ins.accruedPaid.toLocaleString('en-IN')}</strong>` : ''}`;
+  document.getElementById('pv-cashflow-count').innerHTML =
+    `<strong style="color:var(--text);">${future.length}</strong> future cashflows &nbsp;·&nbsp;
+     Valuation: <strong style="color:var(--text);">${valuationDate}</strong> &nbsp;·&nbsp;
+     Units: <strong style="color:var(--text);">${units}</strong> × ₹${faceValue.toLocaleString('en-IN')} = ₹${totalFace.toLocaleString('en-IN')} face
+     ${purchasePrice > 0 ? ` &nbsp;·&nbsp; Purchase: <strong style="color:var(--red);">₹${purchasePrice.toLocaleString('en-IN')}/unit</strong> (dirty: ₹${dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:2})})` : ' &nbsp;·&nbsp; No purchase price — enter above for XIRR/YTM'}`;
 }
 
 
