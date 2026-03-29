@@ -619,13 +619,13 @@
     <div class="metric-divider"></div>
     <div class="metric-block"><div class="label">XIRR %</div><div class="val blue" id="met-xirr">—</div></div>
     <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Upcoming Cashflows</div><div class="val pos" id="met-upcoming">—</div></div>
+    <div class="metric-block"><div class="label">Upcoming Cashflows (₹)</div><div class="val pos" id="met-upcoming">—</div></div>
     <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Past Investments</div><div class="val neg" id="met-past-inv">—</div></div>
+    <div class="metric-block"><div class="label">Past Investments (₹)</div><div class="val neg" id="met-past-inv">—</div></div>
     <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Past Repayments</div><div class="val pos" id="met-past-rep">—</div></div>
+    <div class="metric-block"><div class="label">Past Repayments (₹)</div><div class="val pos" id="met-past-rep">—</div></div>
     <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Not Reinvested</div><div class="val neg" id="met-not-reinvested">—</div></div>
+    <div class="metric-block"><div class="label">Not Reinvested (₹)</div><div class="val neg" id="met-not-reinvested">—</div></div>
     <div class="metric-divider"></div>
     <div class="metric-block"><div class="label">Upcoming Days</div><input class="filter-input" type="number" id="days-upcoming" value="30" min="1" oninput="refresh()"></div>
     <div class="metric-block"><div class="label">Past Days</div><input class="filter-input" type="number" id="days-past" value="30" min="1" oninput="refresh()"></div>
@@ -1362,6 +1362,14 @@ or
 // ===================== STATE =====================
 let currentTab = 'overall';
 let instruments = [];
+
+// Generate RFC4122 UUID for instrument IDs
+function genUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
 let activeInstrumentId = null;
 let cfTab = 'manual';
 let pendingISINs = [];
@@ -1421,8 +1429,28 @@ function fmtDate(d) {
 
 function fmtNum(n) {
   if (!n || isNaN(n) || n === 0) return '<span class="zero">–</span>';
-  const abs = Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const abs = '₹' + Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return n < 0 ? `<span class="negative">(${abs})</span>` : `<span class="positive">${abs}</span>`;
+}
+
+// Per-unit formatting
+function fmtPerUnit(n, units) {
+  if (!n || isNaN(n) || n === 0) return '–';
+  const u = units || 1;
+  return '₹' + (Math.abs(n)/u).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Per ₹100 face value formatting
+function fmtPer100raw(n, totalFace) {
+  if (!n || isNaN(n) || n === 0) return "–";
+  const per100 = (Math.abs(n) / totalFace) * 100;
+  return "₹" + per100.toLocaleString("en-IN", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+}
+function fmtPer100(n, faceValue, units) {
+  if (!n || isNaN(n) || n === 0) return '–';
+  const totalFace = (faceValue || 1000) * (units || 1);
+  const per100 = (Math.abs(n) / totalFace) * 100;
+  return '₹' + per100.toLocaleString('en-IN', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 }
 
 function fmtPct(v) { return v ? (v * 100).toFixed(4) + '%' : '–'; }
@@ -1544,16 +1572,32 @@ function renderOverall(tab) {
   document.getElementById('table-container').innerHTML = `
     <div class="table-wrap"><table>
       <thead>
-        <tr><th class="col-date" rowspan="2">Date</th><th colspan="4">Overall Portfolio</th></tr>
-        <tr><th>Principal</th><th>Interest</th><th>Cashflows</th><th>Cashflows – Aft TDS</th></tr>
+        <tr>
+          <th class="col-date" rowspan="2">Date</th>
+          <th colspan="4" style="border-right:2px solid var(--border);">Overall Portfolio</th>
+          <th colspan="2" style="color:var(--accent2);border-right:2px solid var(--border);">Per Unit</th>
+          <th colspan="2" style="color:var(--yellow);">Per ₹100 Face Value</th>
+        </tr>
+        <tr>
+          <th>Principal</th><th>Interest</th><th>Cashflows</th><th style="border-right:2px solid var(--border);">After TDS</th>
+          <th style="color:var(--accent2);">Principal</th><th style="color:var(--accent2);border-right:2px solid var(--border);">Interest</th>
+          <th style="color:var(--yellow);">Principal</th><th style="color:var(--yellow);">Interest</th>
+        </tr>
       </thead>
-      <tbody>${rows.map((r,ri) => `<tr class="${r.date<=today?'row-past':''}" id="tr-overall-${ri}">
-        <td class="date-col editable-cell" onclick="editOverallCell(${ri},'date','${r.date}')">${fmtDate(r.date)}</td>
+      <tbody>${rows.map((r,ri) => {
+        const totalUnits = instruments.reduce((a,i)=>a+(i.units||1),0) || 1;
+        const totalFace  = instruments.reduce((a,i)=>a+((i.faceValue||1000)*(i.units||1)),0) || 1000;
+        return `<tr class="${r.date<=today?'row-past':''}" id="tr-overall-${ri}">
+        <td class="date-col">${fmtDate(r.date)}</td>
         <td>${fmtNum(r.total_principal)}</td>
         <td>${fmtNum(r.total_interest)}</td>
         <td>${fmtNum(r.total_cashflow)}</td>
-        <td>${fmtNum(r.total_cfAfterTds)}</td>
-      </tr>`).join('')}</tbody>
+        <td style="border-right:2px solid var(--border);">${fmtNum(r.total_cfAfterTds)}</td>
+        <td style="text-align:right;font-size:10px;color:var(--accent2);">${fmtPerUnit(r.total_principal,totalUnits)}</td>
+        <td style="text-align:right;font-size:10px;color:var(--accent2);border-right:2px solid var(--border);">${fmtPerUnit(r.total_interest,totalUnits)}</td>
+        <td style="text-align:right;font-size:10px;color:var(--yellow);">${fmtPer100raw(r.total_principal,totalFace)}</td>
+        <td style="text-align:right;font-size:10px;color:var(--yellow);">${fmtPer100raw(r.total_interest,totalFace)}</td>
+      </tr>`;}).join('')}</tbody>
     </table></div>`;
 }
 
@@ -1571,18 +1615,19 @@ function renderIndividual() {
     `<th colspan="4">${ins.name}<br><span style="font-size:8px;color:var(--muted);font-weight:400;">${(ins.isins||[]).join(', ')}</span></th>`
   ).join('') + `<th colspan="4" style="color:var(--accent);">Overall</th>`;
 
-  const subH = [...instruments, {id:'x'}].map(() =>
-    `<th>Principal</th><th>Interest</th><th>Cashflows</th><th>Aft TDS</th>`
-  ).join('');
+  const subH = [...instruments].map(ins =>
+    `<th>Principal</th><th>Interest</th><th>Per Unit</th><th style="border-right:1px solid var(--border);">Aft TDS</th>`
+  ).join('') + `<th>Principal</th><th>Interest</th><th>Cashflows</th><th>Aft TDS</th>`;
 
   const bodyRows = dates.map(dk => {
     const d = new Date(dk);
     let tP=0,tI=0,tCF=0,tAT=0;
     const cells = instruments.map(ins => {
       const r = rowsByDate[dk][ins.id];
-      if (!r) return `<td class="zero">–</td><td class="zero">–</td><td class="zero">–</td><td class="zero">–</td>`;
+      if (!r) return `<td class="zero">–</td><td class="zero">–</td><td class="zero">–</td><td class="zero" style="border-right:1px solid var(--border);">–</td>`;
       tP+=r.principal; tI+=r.interest; tCF+=r.cashflow; tAT+=r.cfAfterTds;
-      return `<td>${fmtNum(r.principal)}</td><td>${fmtNum(r.interest)}</td><td>${fmtNum(r.cashflow)}</td><td>${fmtNum(r.cfAfterTds)}</td>`;
+      const u = ins.units || 1;
+      return `<td>${fmtNum(r.principal)}</td><td>${fmtNum(r.interest)}</td><td style="font-size:10px;color:var(--accent2);">${fmtPerUnit(r.cashflow,u)}</td><td style="border-right:1px solid var(--border);">${fmtNum(r.cfAfterTds)}</td>`;
     }).join('');
     return `<tr class="${d<=today?'row-past':''}">
       <td class="date-col">${fmtDate(d)}</td>${cells}
@@ -2258,7 +2303,7 @@ function saveInstrument() {
   const purchasePrice = parseFloat(document.getElementById('f-purchase-price').value) || 0;
   const purchaseDate  = document.getElementById('f-purchase-date').value || '';
   const accruedPaid   = parseFloat(document.getElementById('f-accrued-paid').value) || 0;
-  const ins = { id: editingId || Date.now(), name, isins: [...pendingISINs], nominal, xirr, tdsRate, type, units, faceValue, purchasePrice, purchaseDate, accruedPaid, cashflows, creditRating };
+  const ins = { id: editingId || genUUID(), name, isins: [...pendingISINs], nominal, xirr, tdsRate, type, units, faceValue, purchasePrice, purchaseDate, accruedPaid, cashflows, creditRating };
   if (editingId) instruments = instruments.map(i => i.id === editingId ? ins : i);
   else instruments.push(ins);
 
@@ -2735,35 +2780,47 @@ async function loadInstruments(userId) {
 async function persistInstruments() {
   if (!window._currentUser) return;
   const userId = window._currentUser.id;
+  let savedCount = 0, errorCount = 0;
 
   for (const ins of instruments) {
     try {
-      // Upsert instrument row
+      // Build payload — only include id if we already have a DB record
+      const payload = {
+        user_id:        userId,
+        name:           ins.name,
+        type:           ins.type,
+        nominal_pct:    ins.nominal,
+        xirr_pct:       ins.xirr,
+        tds_rate:       ins.tdsRate,
+        units:          ins.units,
+        face_value:     ins.faceValue,
+        credit_rating:  ins.creditRating  || {},
+        purchase_price: ins.purchasePrice || 0,
+        purchase_date:  ins.purchaseDate  || null,
+        accrued_paid:   ins.accruedPaid   || 0
+      };
+      // Only set id if we have a valid DB UUID (not a client-side timestamp)
+      if (ins._dbId && typeof ins._dbId === 'string' && ins._dbId.includes('-')) {
+        payload.id = ins._dbId;
+      }
+
       const { data: insRow, error: insErr } = await _sb
         .from('instruments')
-        .upsert({
-          id:           ins._dbId || undefined,
-          user_id:      userId,
-          name:         ins.name,
-          type:         ins.type,
-          nominal_pct:  ins.nominal,
-          xirr_pct:     ins.xirr,
-          tds_rate:     ins.tdsRate,
-          units:        ins.units,
-          face_value:   ins.faceValue,
-          credit_rating:   ins.creditRating || {},
-          purchase_price: ins.purchasePrice || 0,
-          purchase_date:  ins.purchaseDate  || null,
-          accrued_paid:   ins.accruedPaid   || 0
-        }, { onConflict: 'id' })
+        .upsert(payload, { onConflict: 'id' })
         .select()
         .single();
 
-      if (insErr || !insRow) { console.warn('instrument upsert error', insErr); continue; }
+      if (insErr) {
+        console.error('Supabase save error for', ins.name, ':', JSON.stringify(insErr));
+        errorCount++;
+        continue;
+      }
+      if (!insRow) { console.warn('No row returned for', ins.name); errorCount++; continue; }
 
-      // Store DB id back on the instrument
+      // Store the DB-generated UUID back
       ins._dbId = insRow.id;
       ins.id    = insRow.id;
+      savedCount++;
 
       // Delete old ISINs and cashflows, re-insert fresh
       await Promise.all([
@@ -2792,9 +2849,11 @@ async function persistInstruments() {
         );
       }
     } catch(e) {
-      console.warn('persist error for', ins.name, e.message);
+      console.error('persist exception for', ins.name, ':', e.message);
     }
   }
+  if (savedCount > 0) console.log('Saved', savedCount, 'instrument(s) to Supabase');
+  if (errorCount > 0) toast('⚠️ ' + errorCount + ' instrument(s) could not be saved to database', 'warn');
 }
 
 async function deleteInstrumentFromDB(id) {
@@ -2870,12 +2929,19 @@ function renderInstrumentCashflowTable(ins) {
   const rows  = computeRows(ins);
   if (!rows.length) return '<div style="color:var(--muted);font-size:12px;padding:10px;">No cashflows.</div>';
 
+  const fv = ins.faceValue || 1000;
+  const u  = ins.units    || 1;
+  const totalFace = fv * u;
   return `<div class="table-wrap" style="max-height:360px;overflow-y:auto;"><table>
-    <thead><tr>
-      <th>Payment Date</th><th style="color:var(--yellow)">Record Date</th>
-      <th>Principal</th><th>Interest</th>
-      <th>Net (after TDS)</th><th>Notes</th><th>Status</th><th style="width:40px;"></th>
-    </tr></thead>
+    <thead>
+      <tr>
+        <th>Payment Date</th><th style="color:var(--yellow)">Record Date</th>
+        <th>Principal</th><th>Interest</th>
+        <th style="color:var(--accent2)">Per Unit</th>
+        <th style="color:var(--yellow)">Per ₹100</th>
+        <th>Net (after TDS)</th><th>Notes</th><th>Status</th><th style="width:40px;"></th>
+      </tr>
+    </thead>
     <tbody>
     ${ins.cashflows.map((cf, cfIdx) => {
       const d   = new Date(cf.date);
@@ -2890,6 +2956,8 @@ function renderInstrumentCashflowTable(ins) {
           ${(cf.principal||0)!==0?fmtCcy(cf.principal):'-'}
         </td>
         <td style="text-align:right;font-size:11px;color:var(--green)">${(cf.interest||0)>0?fmtCcy(cf.interest):'-'}</td>
+        <td style="text-align:right;font-size:10px;color:var(--accent2);">${(cf.interest||0)+(cf.principal||0)!==0?fmtPerUnit((cf.interest||0)+(cf.principal||0),${u}):'–'}</td>
+        <td style="text-align:right;font-size:10px;color:var(--yellow);">${(cf.interest||0)+(cf.principal||0)!==0?fmtPer100raw((cf.interest||0)+(cf.principal||0),${totalFace}):'–'}</td>
         <td style="text-align:right;font-size:11px;color:${net>0?'var(--green)':net<0?'var(--red)':'var(--muted)'}">${fmtCcy(net)}</td>
         <td style="font-size:10px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;">${cf.notes||'—'}</td>
         <td style="font-size:10px;text-align:center;">${isInvestment?'<span style="color:var(--red);">Investment</span>':past?'<span style="color:var(--muted);">Past</span>':'<span style="color:var(--green);">Upcoming</span>'}</td>
@@ -4196,7 +4264,7 @@ function importCASHoldings() {
   selected.forEach(h => {
     // Create an instrument for each selected holding
     const ins = {
-      id: Date.now() + Math.random(),
+      id: genUUID(),
       name: h.name.length > 40 ? h.name.substring(0, 40) + '…' : h.name,
       isins: [h.isin],
       nominal: 0,
