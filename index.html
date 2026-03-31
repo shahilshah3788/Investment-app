@@ -2557,9 +2557,22 @@ function saveInstrument() {
     }
   }
 
-  const ins = { id: editingId || genUUID(), name, isins: [...pendingISINs], nominal, xirr: computedXirr, tdsRate, type, units, faceValue, purchasePrice, purchaseDate, accruedPaid, cashflows, creditRating };
-  if (editingId) instruments = instruments.map(i => i.id === editingId ? ins : i);
-  else instruments.push(ins);
+  // Preserve _dbId when editing so Supabase UPDATE works
+  const existingIns = editingId ? instruments.find(i => String(i.id) === String(editingId)) : null;
+  const ins = {
+    id:     editingId || genUUID(),
+    _dbId:  existingIns ? existingIns._dbId : undefined,
+    name, isins: [...pendingISINs],
+    nominal, xirr: computedXirr, tdsRate, type, units, faceValue,
+    purchasePrice, purchaseDate, accruedPaid, cashflows, creditRating
+  };
+  if (editingId) {
+    const idx = instruments.findIndex(i => String(i.id) === String(editingId));
+    if (idx >= 0) instruments[idx] = ins;
+    else instruments.push(ins);
+  } else {
+    instruments.push(ins);
+  }
 
   closeModal('add-modal');
   // Show the computed XIRR to user
