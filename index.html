@@ -3379,8 +3379,8 @@ function renderInstrumentCashflowTable(ins) {
   banner += '<span><span style="color:var(--muted);">Net Interest</span> <strong style="color:var(--green);">₹'+totalNetInt.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
   if (ins.xirr > 0) banner += '<span><span style="color:var(--muted);">XIRR</span> <strong style="color:var(--green);">'+(ins.xirr*100).toFixed(4)+'%</strong></span>';
   if (ins.nominal > 0) banner += '<span><span style="color:var(--muted);">Nominal %</span> <strong>'+(ins.nominal*100).toFixed(4)+'%</strong></span>';
-  banner += '<button onclick="downloadInstrumentCSV(''+ins.id+'')" style="margin-left:auto;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ CSV</button>';
-  banner += '<button onclick="downloadInstrumentExcel(''+ins.id+'')" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ Excel</button>';
+  banner += '<button onclick="downloadInstrumentCSV(\'' + ins.id + '\')" style="margin-left:auto;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ CSV</button>';
+  banner += '<button onclick="downloadInstrumentExcel(\'' + ins.id + '\')" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ Excel</button>';
   banner += '</div>';
 
   // ── Table rows ──
@@ -3405,7 +3405,7 @@ function renderInstrumentCashflowTable(ins) {
         ? '<span style="color:var(--muted);font-size:9px;">Paid</span>'
         : '<span style="color:var(--green);font-size:9px;">Upcoming</span>';
 
-    var editBtn = '<button onclick="editCashflowInstrument(''+ins.id+'','+cfIdx+')"'
+    var editBtn = '<button onclick="editCashflowInstrument(\'' + ins.id + '\',' + cfIdx + ')"'
       + ' style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:9px;">✎</button>';
 
     // Format helpers
