@@ -548,6 +548,11 @@
     <button class="add-btn" onclick="openAddModal()">+ Add Instrument</button>
     <button class="cas-btn" onclick="openCASModal()">📄 Import from CAS PDF</button>
     <button class="zerodha-btn" onclick="openZerodhaModal()">🏦 Connect Zerodha</button>
+    <div style="display:flex;gap:6px;margin-left:auto;">
+      <button onclick="downloadAllCSV()" style="background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all var(--transition);" title="Download all instruments as CSV">⬇ CSV</button>
+      <button onclick="downloadAllExcel()" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all var(--transition);" title="Download all instruments as Excel">⬇ Excel</button>
+      <button onclick="downloadOverallCSV()" style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);color:var(--yellow);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all var(--transition);" title="Download overall cashflow schedule">⬇ Schedule</button>
+    </div>
     <button class="reminder-btn" onclick="toggleReminders()">🔔 Reminders <span id="reminder-badge" style="display:none;background:var(--yellow);color:#0d0f14;border-radius:10px;padding:0 6px;font-size:9px;margin-left:2px;"></span></button>
   </div>
 
@@ -1602,13 +1607,61 @@ function fmtCcy(n) { return '₹' + Math.abs(n).toLocaleString('en-IN', { minimu
 function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
 
 function computeRows(ins) {
-  return ins.cashflows.map(cf => {
-    const d = new Date(cf.date);
+  const u   = ins.units     || 1;
+  const fv  = ins.faceValue || 1000;
+  const tdr = ins.tdsRate   || 0.10;
+  const totalFace = u * fv;
+
+  // Sort cashflows chronologically for running O/S calculation
+  const sorted = [...ins.cashflows].sort((a,b) => a.date.localeCompare(b.date));
+  let outstanding = 0;
+  let cumCF = 0;
+  let prevDate = null;
+
+  return sorted.map((cf, i) => {
+    const d         = new Date(cf.date);
     const principal = cf.principal || 0;
-    const interest = cf.interest || 0;
-    const cashflow = principal + interest;
-    const tds = interest > 0 ? interest * (ins.tdsRate || 0.1) : 0;
-    return { date: d, principal, interest, cashflow, cfAfterTds: cashflow - tds };
+    const interest  = cf.interest  || 0;
+    const isInv     = principal < 0;
+
+    // Outstanding BEFORE this payment
+    if (isInv) outstanding += Math.abs(principal); // investment adds to O/S
+    const osBefore = outstanding;
+
+    // Days in period (Actual/365 — matches Excel)
+    const days = prevDate && !isInv ? Math.round((d - prevDate) / 86400000) : 0;
+
+    // Gross interest verification: O/S × coupon × days/365
+    // Use stored interest value (from user/auto-gen), not recomputed — preserves exact Excel figures
+    const tds    = interest > 0 ? interest * tdr : 0;
+    const netInt = interest - tds;
+    const cashflow     = principal + interest;
+    const cfAfterTds   = principal + netInt;
+    cumCF += cfAfterTds;
+
+    // Per-unit
+    const intPerUnit = u > 0 ? interest / u : 0;
+    const pPerUnit   = u > 0 ? Math.abs(principal) / u : 0;
+    const cfPerUnit  = u > 0 ? cfAfterTds / u : 0;
+    // Per ₹100 face value
+    const intPer100  = totalFace > 0 ? (interest / totalFace) * 100 : 0;
+    const pPer100    = totalFace > 0 ? (Math.abs(principal) / totalFace) * 100 : 0;
+    const netPer100  = totalFace > 0 ? (cfAfterTds / totalFace) * 100 : 0;
+
+    if (!isInv) prevDate = d;
+    // Update O/S after principal repayment
+    if (!isInv && principal > 0) outstanding -= principal;
+
+    return {
+      date: d, dateStr: cf.date,
+      principal, interest, cashflow, cfAfterTds,
+      tds, netInt, osBefore, days, cumCF,
+      intPerUnit, pPerUnit, cfPerUnit,
+      intPer100, pPer100, netPer100,
+      recordDate: cf.recordDate || '',
+      notes: cf.notes || '',
+      isInv
+    };
   });
 }
 
@@ -1710,6 +1763,17 @@ function renderEmpty() {
 
 function renderOverall(tab) {
   const today = getToday();
+  // Enhanced: compute totals across all instruments
+  var allCFRows = [];
+  instruments.forEach(function(ins) {
+    computeRows(ins).forEach(function(r) { allCFRows.push({ins: ins, r: r}); });
+  });
+  var grandInvested = allCFRows.filter(function(x){return x.r.isInv;}).reduce(function(a,x){return a+Math.abs(x.r.principal);},0);
+  var grandGrossInt = allCFRows.filter(function(x){return !x.r.isInv;}).reduce(function(a,x){return a+x.r.interest;},0);
+  var grandTDS      = allCFRows.reduce(function(a,x){return a+x.r.tds;},0);
+  var grandNetInt   = grandGrossInt - grandTDS;
+  var grandNetCF    = grandNetInt + grandInvested;
+
   let rows = mergeRows(instruments.map(ins => ({ rows: computeRows(ins) })));
   if (tab === 'upcoming') rows = rows.filter(r => r.date > today);
   else if (tab === 'past') rows = rows.filter(r => r.date <= today);
@@ -1740,7 +1804,28 @@ function renderOverall(tab) {
       + '</tr>';
   }).join('');
 
-  document.getElementById('table-container').innerHTML =
+  // Grand summary cards
+  var sumCards = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px;">';
+  var cards = [
+    {label:'Total Invested', val:'₹'+grandInvested.toLocaleString('en-IN',{maximumFractionDigits:0}), color:'var(--red)'},
+    {label:'Gross Interest', val:'₹'+grandGrossInt.toLocaleString('en-IN',{maximumFractionDigits:0}), color:'var(--green)'},
+    {label:'TDS @10%',       val:'₹'+grandTDS.toLocaleString('en-IN',{maximumFractionDigits:0}),      color:'var(--red)'},
+    {label:'Net Interest',   val:'₹'+grandNetInt.toLocaleString('en-IN',{maximumFractionDigits:0}),   color:'var(--green)'},
+    {label:'Net Return %',   val: grandInvested>0 ? ((grandNetInt/grandInvested)*100).toFixed(2)+'%' : '—', color:'var(--accent2)'},
+  ];
+  if (instruments.length > 0 && instruments[0].xirr > 0) {
+    var avgXirr = instruments.reduce(function(a,i){return a+i.xirr;},0) / instruments.length;
+    cards.push({label:'Avg XIRR', val:(avgXirr*100).toFixed(4)+'%', color:'var(--accent)'});
+  }
+  cards.forEach(function(card) {
+    sumCards += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;text-align:center;">'
+      + '<div style="font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-bottom:4px;">'+card.label+'</div>'
+      + '<div style="font-size:16px;font-weight:700;font-family:var(--font-mono);color:'+card.color+';">'+card.val+'</div>'
+      + '</div>';
+  });
+  sumCards += '</div>';
+
+  document.getElementById('table-container').innerHTML = sumCards +
     '<div class="table-wrap"><table>'
     + '<thead>'
     + '<tr>'
@@ -3243,107 +3328,148 @@ function deleteCashflowRow(insId, cfIdx) {
   toast('Row deleted', 'success');
 }
 
-// Render individual instrument cashflows with edit buttons
+// Render individual instrument cashflows with edit buttons — Excel-aligned
 function renderInstrumentCashflowTable(ins) {
-  const today    = getToday();
-  const todayStr = today.toISOString().slice(0,10);
-  const fv       = ins.faceValue || 1000;
-  const u        = ins.units     || 1;
-  const totalFace = fv * u;
-  const pp       = ins.purchasePrice || 0;
-  const ai       = ins.accruedPaid   || 0;
+  const todayStr  = getToday().toISOString().slice(0,10);
+  const u         = ins.units     || 1;
+  const fv        = ins.faceValue || 1000;
+  const tdr       = ins.tdsRate   || 0.10;
+  const totalFace = u * fv;
+  const pp        = ins.purchasePrice || 0;
+  const ai        = ins.accruedPaid   || 0;
   const dirtyTotal = pp > 0 ? (pp * u + ai) : 0;
-  const cleanTotal = pp > 0 ? pp * u : 0;
+  const cleanPPU   = pp;  // clean price per unit
 
   if (!ins.cashflows.length) {
     return '<div style="color:var(--muted);font-size:12px;padding:14px;">No cashflows yet. Click + Row to add one.</div>';
   }
 
-  // Purchase price / dirty price summary banner
-  var summaryBanner = '';
-  if (pp > 0) {
-    var cleanPer100  = ((cleanTotal / totalFace) * 100).toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
-    var dirtyPer100  = ((dirtyTotal / totalFace) * 100).toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
-    var aiPer100     = ((ai / totalFace) * 100).toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
-    summaryBanner = '<div style="background:rgba(248,113,113,0.06);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;gap:16px;flex-wrap:wrap;font-size:10px;">'
-      + '<span>💰 <strong>Clean Price:</strong> ₹' + pp.toLocaleString('en-IN',{maximumFractionDigits:2}) + '/unit'
-      + ' &nbsp;|&nbsp; ₹' + cleanTotal.toLocaleString('en-IN',{maximumFractionDigits:2}) + ' total'
-      + ' &nbsp;|&nbsp; <span style="color:var(--yellow);">₹' + cleanPer100 + '/₹100</span></span>'
-      + (ai > 0 ? '<span>➕ <strong>Accrued Int Paid:</strong> ₹' + ai.toLocaleString('en-IN',{maximumFractionDigits:2})
-        + ' &nbsp;|&nbsp; <span style="color:var(--yellow);">₹' + aiPer100 + '/₹100</span></span>' : '')
-      + '<span>🔴 <strong>Dirty Price:</strong> ₹' + (dirtyTotal/u).toLocaleString('en-IN',{maximumFractionDigits:2}) + '/unit'
-      + ' &nbsp;|&nbsp; ₹' + dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:2}) + ' total'
-      + ' &nbsp;|&nbsp; <span style="color:var(--yellow);">₹' + dirtyPer100 + '/₹100</span></span>'
-      + '</div>';
-  }
+  // Use enhanced computeRows for full metrics
+  var rows_data = computeRows(ins);
 
-  // Build rows
-  var rows = ins.cashflows.map(function(cf, cfIdx) {
-    var d   = new Date(cf.date);
-    var p   = cf.principal || 0;
-    var int = cf.interest  || 0;
-    var tds = int > 0 ? int * (ins.tdsRate || 0.1) : 0;
-    var net = p + int - tds;
-    var past  = cf.date <= todayStr;
-    var isInv = p < 0;
-    var pColor = isInv ? 'var(--red)' : (p > 0 ? 'var(--green)' : 'var(--muted)');
-    var netColor = net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'var(--muted)';
-    var rowClass = (past && !isInv) ? 'row-past' : '';
-    var rowBg    = isInv ? 'background:rgba(248,113,113,0.05);' : '';
-
-    // Record date — safe parse
-    var rdStr = '—';
-    if (cf.recordDate) {
-      try { rdStr = fmtDate(new Date(cf.recordDate)); } catch(e) { rdStr = cf.recordDate; }
+  // Compute summary totals
+  var totalGrossInt = 0, totalTDS = 0, totalNetInt = 0, totalPrincipal = 0, totalNetCF = 0;
+  rows_data.forEach(function(r) {
+    if (!r.isInv) {
+      totalGrossInt  += r.interest;
+      totalTDS       += r.tds;
+      totalNetInt    += r.netInt;
+      totalPrincipal += r.principal > 0 ? r.principal : 0;
+      totalNetCF     += r.cfAfterTds;
     }
+  });
+  var totalInvested = rows_data.filter(function(r){return r.isInv;}).reduce(function(a,r){return a+Math.abs(r.principal);},0);
 
-    // Per unit values
-    var pPerUnit   = p   !== 0 ? fmtPerUnit(p,   u) : '–';
-    var intPerUnit = int > 0   ? fmtPerUnit(int, u) : '';
-    var pPer100    = p   !== 0 ? fmtPer100raw(p,   totalFace) : '–';
-    var intPer100  = int > 0   ? fmtPer100raw(int, totalFace) : '';
-    var netPer100  = net !== 0 ? fmtPer100raw(net, totalFace) : '–';
+  // ── Investment summary banner ──
+  var bannerBg = pp > 0 ? 'background:rgba(251,113,133,0.05);' : 'background:var(--surface2);';
+  var banner = '<div style="'+bannerBg+'border-bottom:1px solid var(--border);padding:10px 16px;display:flex;gap:20px;flex-wrap:wrap;font-size:10px;font-family:var(--font-mono);">';
+  if (pp > 0) {
+    var cleanPer100 = ((cleanPPU / fv) * 100).toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4});
+    var dirtyPer100 = ((dirtyTotal/totalFace)*100).toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4});
+    banner += '<span><span style="color:var(--muted);">Clean Price</span> <strong style="color:var(--accent2);">₹'+pp.toLocaleString('en-IN',{maximumFractionDigits:2})+'/unit</strong>'
+            + ' &nbsp;|&nbsp; <strong style="color:var(--accent2);">'+cleanPer100+'/₹100</strong></span>';
+    if (ai > 0) banner += '<span><span style="color:var(--muted);">+Accrued Int</span> <strong style="color:var(--yellow);">₹'+ai.toLocaleString('en-IN',{maximumFractionDigits:2})+'</strong></span>';
+    banner += '<span><span style="color:var(--muted);">Dirty Price Total</span> <strong style="color:var(--red);">₹'+dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong>'
+            + ' &nbsp;('+dirtyPer100+'/₹100)</span>';
+  } else if (totalInvested > 0) {
+    banner += '<span><span style="color:var(--muted);">Invested</span> <strong style="color:var(--red);">₹'+totalInvested.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
+  }
+  banner += '<span><span style="color:var(--muted);">Gross Interest</span> <strong>₹'+totalGrossInt.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
+  banner += '<span><span style="color:var(--muted);">TDS @'+(tdr*100).toFixed(0)+'%</span> <strong style="color:var(--red);">₹'+totalTDS.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
+  banner += '<span><span style="color:var(--muted);">Net Interest</span> <strong style="color:var(--green);">₹'+totalNetInt.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
+  if (ins.xirr > 0) banner += '<span><span style="color:var(--muted);">XIRR</span> <strong style="color:var(--green);">'+(ins.xirr*100).toFixed(4)+'%</strong></span>';
+  if (ins.nominal > 0) banner += '<span><span style="color:var(--muted);">Nominal %</span> <strong>'+(ins.nominal*100).toFixed(4)+'%</strong></span>';
+  banner += '<button onclick="downloadInstrumentCSV(''+ins.id+'')" style="margin-left:auto;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ CSV</button>';
+  banner += '<button onclick="downloadInstrumentExcel(''+ins.id+'')" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ Excel</button>';
+  banner += '</div>';
 
-    var perUnitCell = pPerUnit
-      + (intPerUnit ? '<br><span style="color:var(--muted);font-size:9px;">' + intPerUnit + '</span>' : '');
-    var per100Cell = pPer100
-      + (intPer100 ? '<br><span style="color:var(--muted);font-size:9px;">' + intPer100 + '</span>' : '');
+  // ── Table rows ──
+  var tbody = rows_data.map(function(r, cfIdx) {
+    var d       = r.date;
+    var p       = r.principal;
+    var int     = r.interest;
+    var past    = r.dateStr <= todayStr;
+    var isInv   = r.isInv;
 
-    var editBtn = '<button onclick="editCashflowInstrument(\'' + ins.id + '\',' + cfIdx + ')"'
-      + ' style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;" title="Edit row">✎</button>';
+    var pColor  = isInv ? 'var(--red)' : (p > 0 ? 'var(--green)' : 'var(--muted)');
+    var netColor= r.cfAfterTds > 0 ? 'var(--green)' : r.cfAfterTds < 0 ? 'var(--red)' : 'var(--muted)';
+    var rowBg   = isInv ? 'background:rgba(251,113,133,0.04);' : (r.principal > 0 && !isInv ? 'background:rgba(52,211,153,0.04);' : '');
+    var rowCls  = (past && !isInv) ? 'row-past' : '';
 
-    return '<tr id="cf-row-' + ins.id + '-' + cfIdx + '" class="' + rowClass + '" style="' + rowBg + '">'
-      + '<td class="date-col" style="white-space:nowrap;">' + fmtDate(d) + '</td>'
-      + '<td class="date-col" style="color:var(--yellow);font-size:10px;white-space:nowrap;">' + rdStr + '</td>'
-      + '<td style="text-align:right;font-size:11px;color:' + pColor + ';">' + (p !== 0 ? fmtCcy(p) : '–') + '</td>'
-      + '<td style="text-align:right;font-size:11px;color:var(--green);">' + (int > 0 ? fmtCcy(int) : '–') + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">' + perUnitCell + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">' + per100Cell + '</td>'
-      + '<td style="text-align:right;font-size:11px;color:' + netColor + ';">' + (net !== 0 ? fmtCcy(net) : '–') + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">' + netPer100 + '</td>'
-      + '<td style="font-size:10px;color:var(--muted);max-width:90px;overflow:hidden;text-overflow:ellipsis;">' + (cf.notes || '—') + '</td>'
-      + '<td>' + editBtn + '</td>'
+    var rdStr = r.recordDate ? (function(){try{return fmtDate(new Date(r.recordDate));}catch(e){return r.recordDate;}})() : '—';
+
+    // Status badge
+    var statusHtml = isInv
+      ? '<span style="color:var(--red);font-size:9px;">Investment</span>'
+      : past
+        ? '<span style="color:var(--muted);font-size:9px;">Paid</span>'
+        : '<span style="color:var(--green);font-size:9px;">Upcoming</span>';
+
+    var editBtn = '<button onclick="editCashflowInstrument(''+ins.id+'','+cfIdx+')"'
+      + ' style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:9px;">✎</button>';
+
+    // Format helpers
+    function fc(n) { return n !== 0 ? fmtCcy(n) : '–'; }
+    function fp(n,dec) { dec=dec||2; return n !== 0 ? ('₹'+Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:dec,maximumFractionDigits:dec})) : '–'; }
+
+    return '<tr id="cf-row-'+ins.id+'-'+cfIdx+'" class="'+rowCls+'" style="'+rowBg+'">'
+      + '<td class="date-col" style="white-space:nowrap;">'+fmtDate(d)+'</td>'
+      + '<td class="date-col" style="color:var(--yellow);font-size:10px;white-space:nowrap;">'+rdStr+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--muted);">'+(r.days > 0 ? r.days : '—')+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--muted);">'+(r.osBefore > 0 ? ('₹'+r.osBefore.toLocaleString('en-IN',{maximumFractionDigits:0})) : '—')+'</td>'
+      + '<td style="text-align:right;font-size:11px;color:'+pColor+';">'+(p !== 0 ? fc(p) : '–')+'</td>'
+      + '<td style="text-align:right;font-size:11px;color:var(--green);">'+(int > 0 ? fc(int) : '–')+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--red);">'+(r.tds > 0 ? fc(r.tds) : '–')+'</td>'
+      + '<td style="text-align:right;font-size:11px;font-weight:600;color:'+netColor+';">'+fc(r.cfAfterTds)+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">'
+        + (r.intPerUnit > 0 ? fp(r.intPerUnit,2) : '–')
+        + (r.pPerUnit > 0 ? '<br><span style="font-size:9px;color:var(--muted);">p: '+fp(r.pPerUnit,2)+'</span>' : '')
+        + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">'
+        + (r.intPer100 > 0 ? r.intPer100.toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4}) : '–')
+        + (r.pPer100   > 0 ? '<br><span style="font-size:9px;color:var(--muted);">p: '+r.pPer100.toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4})+'</span>' : '')
+        + '</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--muted);">'+(r.cumCF !== 0 ? ('₹'+r.cumCF.toLocaleString('en-IN',{maximumFractionDigits:0})) : '—')+'</td>'
+      + '<td style="font-size:9px;text-align:center;">'+statusHtml+'</td>'
+      + '<td style="font-size:9px;color:var(--muted);max-width:80px;overflow:hidden;text-overflow:ellipsis;">'+( r.notes || '—')+'</td>'
+      + '<td>'+editBtn+'</td>'
       + '</tr>';
   }).join('');
 
-  var thead = '<thead><tr>'
+  // Totals row
+  var totRow = '<tr style="background:var(--surface2);font-weight:600;border-top:2px solid var(--border);">'
+    + '<td colspan="4" class="date-col" style="font-family:var(--font-mono);font-size:10px;">TOTALS</td>'
+    + '<td style="text-align:right;font-size:11px;color:var(--red);font-family:var(--font-mono);">₹'+totalInvested.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
+    + '<td style="text-align:right;font-size:11px;color:var(--green);font-family:var(--font-mono);">₹'+totalGrossInt.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
+    + '<td style="text-align:right;font-size:11px;color:var(--red);font-family:var(--font-mono);">₹'+totalTDS.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
+    + '<td style="text-align:right;font-size:11px;color:var(--green);font-family:var(--font-mono);">₹'+totalNetCF.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
+    + '<td colspan="6"></td>'
+    + '</tr>';
+
+  var thead = '<thead><tr style="font-size:8px;">'
     + '<th>Payment Date</th>'
     + '<th style="color:var(--yellow);">Record Date</th>'
-    + '<th>Principal (Total)</th>'
-    + '<th>Interest (Total)</th>'
-    + '<th style="color:var(--accent2);">Per Unit<br><span style="font-weight:400;font-size:8px;color:var(--muted);">principal / interest</span></th>'
-    + '<th style="color:var(--yellow);">Per ₹100 Face<br><span style="font-weight:400;font-size:8px;color:var(--muted);">principal / interest</span></th>'
-    + '<th>Net after TDS</th>'
-    + '<th style="color:var(--yellow);">Net/₹100</th>'
+    + '<th>Days</th>'
+    + '<th>O/S Principal</th>'
+    + '<th>Principal (₹)</th>'
+    + '<th>Gross Interest (₹)</th>'
+    + '<th style="color:var(--red);">TDS</th>'
+    + '<th>Net Cashflow (₹)</th>'
+    + '<th style="color:var(--accent2);">Per Unit<br>(Int / Prin)</th>'
+    + '<th style="color:var(--yellow);">Per ₹100<br>(Int / Prin)</th>'
+    + '<th>Cumulative</th>'
+    + '<th>Status</th>'
     + '<th>Notes</th>'
-    + '<th style="width:40px;"></th>'
+    + '<th style="width:36px;"></th>'
     + '</tr></thead>';
 
-  return summaryBanner
-    + '<div class="table-wrap" style="max-height:420px;overflow-y:auto;"><table>'
-    + thead + '<tbody>' + rows + '</tbody>'
+  return banner
+    + '<div class="table-wrap" style="max-height:480px;overflow-y:auto;"><table>'
+    + thead + '<tbody>' + tbody + totRow + '</tbody>'
     + '</table></div>';
 }
+
+
 
 // ===================== PLAYCARD DRILL-DOWN =====================
 function openDrillDown(cardType) {
@@ -5082,6 +5208,203 @@ function confirmSell() {
   persistInstruments();
   refresh();
   toast('Sale recorded: ' + fmtCcy(proceeds) + ' proceeds · ' + ins.units + ' units remaining', 'success');
+}
+
+// ===================== DOWNLOAD / EXPORT =====================
+
+// Build cashflow data array for an instrument
+function getCFData(ins) {
+  var rows = computeRows(ins);
+  return rows.map(function(r) {
+    return {
+      'Payment Date':      r.date.toISOString().slice(0,10),
+      'Record Date':       r.recordDate || '',
+      'Days in Period':    r.days || '',
+      'O/S Principal':     r.osBefore || '',
+      'Principal (₹)':    r.principal || '',
+      'Gross Interest (₹)':r.interest || '',
+      'TDS (₹)':          r.tds || '',
+      'Net Interest (₹)': r.netInt || '',
+      'Net Cashflow (₹)': r.cfAfterTds || '',
+      'Int / Unit (₹)':   r.intPerUnit || '',
+      'Prin / Unit (₹)':  r.pPerUnit   || '',
+      'Int / ₹100':       r.intPer100 || '',
+      'Prin / ₹100':      r.pPer100   || '',
+      'Cumulative (₹)':   r.cumCF || '',
+      'Notes':             r.notes || ''
+    };
+  });
+}
+
+// Download all instruments as CSV
+function downloadAllCSV() {
+  var rows = [];
+  instruments.forEach(function(ins) {
+    var cfRows = getCFData(ins);
+    cfRows.forEach(function(r) {
+      var merged = { 'Instrument': ins.name, 'Type': ins.type, 'ISIN': (ins.isins||[]).join(';') };
+      Object.assign(merged, r);
+      rows.push(merged);
+    });
+  });
+  if (!rows.length) { toast('No data to export', 'warn'); return; }
+  var headers = Object.keys(rows[0]);
+  var csv = headers.join(',') + '\n' + rows.map(function(r) {
+    return headers.map(function(h) {
+      var v = r[h] === undefined || r[h] === null ? '' : String(r[h]);
+      return v.includes(',') ? '"'+v+'"' : v;
+    }).join(',');
+  }).join('\n');
+  downloadText(csv, 'Investment_Schedule_All.csv', 'text/csv');
+  toast('Downloaded all instruments as CSV ✓', 'success');
+}
+
+// Download single instrument CSV
+function downloadInstrumentCSV(insId) {
+  var ins = instruments.find(function(i){ return String(i.id) === String(insId); });
+  if (!ins) return;
+  var rows = getCFData(ins);
+  if (!rows.length) { toast('No cashflows to export', 'warn'); return; }
+  var headers = Object.keys(rows[0]);
+  var metaRows = [
+    ['Instrument Name', ins.name],
+    ['Type', ins.type],
+    ['ISIN', (ins.isins||[]).join('; ')],
+    ['Units', ins.units||1],
+    ['Face Value per Unit', ins.faceValue||1000],
+    ['Coupon / Nominal %', ins.nominal ? (ins.nominal*100).toFixed(4)+'%' : ''],
+    ['XIRR %', ins.xirr ? (ins.xirr*100).toFixed(4)+'%' : ''],
+    ['Purchase Price/unit', ins.purchasePrice||''],
+    ['TDS Rate', ((ins.tdsRate||0.1)*100).toFixed(0)+'%'],
+    ['Rating', ins.creditRating && ins.creditRating.rating ? ins.creditRating.rating : ''],
+    [],
+  ];
+  var meta = metaRows.map(function(r){ return r.join(','); }).join('\n');
+  var csv = meta + '\n' + headers.join(',') + '\n' + rows.map(function(r) {
+    return headers.map(function(h) {
+      var v = r[h] === undefined || r[h] === null ? '' : String(r[h]);
+      return v.includes(',') || v.includes('\n') ? '"'+v.replace(/"/g,'""')+'"' : v;
+    }).join(',');
+  }).join('\n');
+  var fname = ins.name.replace(/[^a-zA-Z0-9]/g,'_') + '_Cashflows.csv';
+  downloadText(csv, fname, 'text/csv');
+  toast('Downloaded "'+ins.name+'" as CSV ✓', 'success');
+}
+
+// Download single instrument Excel using SheetJS
+function downloadInstrumentExcel(insId) {
+  if (typeof XLSX === 'undefined') { toast('XLSX library not loaded', 'warn'); return; }
+  var ins = instruments.find(function(i){ return String(i.id) === String(insId); });
+  if (!ins) return;
+  var rows = getCFData(ins);
+  if (!rows.length) { toast('No cashflows to export', 'warn'); return; }
+
+  var wb = XLSX.utils.book_new();
+
+  // Summary sheet
+  var u = ins.units||1; var fv = ins.faceValue||1000;
+  var pp = ins.purchasePrice||0; var ai = ins.accruedPaid||0;
+  var dirtyTotal = pp > 0 ? pp*u+ai : 0;
+  var summaryData = [
+    ['INSTRUMENT DETAILS'],
+    ['Name',            ins.name],
+    ['Type',            ins.type],
+    ['ISIN',            (ins.isins||[]).join('; ')],
+    ['Units',           u],
+    ['Face Value / Unit (₹)',  fv],
+    ['Total Face Value (₹)',   u * fv],
+    ['Coupon % (Nominal)',     ins.nominal ? (ins.nominal*100).toFixed(4)+'%' : ''],
+    ['XIRR %',                ins.xirr ? (ins.xirr*100).toFixed(4)+'%' : ''],
+    ['TDS Rate',              ((ins.tdsRate||0.1)*100).toFixed(0)+'%'],
+    ['Purchase Price/Unit (₹)',pp || ''],
+    ['Accrued Interest Paid (₹)', ai || ''],
+    ['Dirty Price Total (₹)', dirtyTotal || ''],
+    ['Rating',                ins.creditRating && ins.creditRating.rating ? ins.creditRating.rating : ''],
+    [],
+    ['CASHFLOW SUMMARY'],
+  ];
+  // Add totals
+  var cfRows = computeRows(ins);
+  var tInv  = cfRows.filter(function(r){return r.isInv;}).reduce(function(a,r){return a+Math.abs(r.principal);},0);
+  var tGInt = cfRows.filter(function(r){return !r.isInv;}).reduce(function(a,r){return a+r.interest;},0);
+  var tTDS  = cfRows.reduce(function(a,r){return a+r.tds;},0);
+  var tNInt = tGInt - tTDS;
+  summaryData.push(['Total Invested (₹)',     tInv]);
+  summaryData.push(['Total Gross Interest (₹)',tGInt]);
+  summaryData.push(['Total TDS (₹)',           tTDS]);
+  summaryData.push(['Total Net Interest (₹)',  tNInt]);
+  summaryData.push(['Total Net Cashflow (₹)',  tNInt + (tInv > 0 ? tInv : 0)]);
+
+  var wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [{wch:30},{wch:25}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+  // Cashflow sheet
+  var wsData = XLSX.utils.json_to_sheet(rows);
+  wsData['!cols'] = Object.keys(rows[0]).map(function(){ return {wch:18}; });
+  XLSX.utils.book_append_sheet(wb, wsData, 'Cashflow Schedule');
+
+  var fname = ins.name.replace(/[^a-zA-Z0-9]/g,'_') + '_Cashflows.xlsx';
+  XLSX.writeFile(wb, fname);
+  toast('Downloaded "'+ins.name+'" as Excel ✓', 'success');
+}
+
+// Download all instruments Excel
+function downloadAllExcel() {
+  if (typeof XLSX === 'undefined') { toast('XLSX library not loaded', 'warn'); return; }
+  if (!instruments.length) { toast('No instruments to export', 'warn'); return; }
+  var wb = XLSX.utils.book_new();
+  instruments.forEach(function(ins) {
+    var rows = getCFData(ins);
+    if (!rows.length) return;
+    var ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(function(){ return {wch:16}; });
+    var shName = ins.name.replace(/[^a-zA-Z0-9 ]/g,'').slice(0,28);
+    XLSX.utils.book_append_sheet(wb, ws, shName || 'Sheet');
+  });
+  XLSX.writeFile(wb, 'Investment_Schedule_All.xlsx');
+  toast('Downloaded all instruments as Excel ✓', 'success');
+}
+
+// Download overall summary CSV
+function downloadOverallCSV() {
+  var today = getToday();
+  var rows = [];
+  instruments.forEach(function(ins) {
+    computeRows(ins).forEach(function(r) {
+      rows.push({
+        'Instrument': ins.name, 'Type': ins.type, 'ISIN': (ins.isins||[]).join(';'),
+        'Payment Date': r.date.toISOString().slice(0,10),
+        'Record Date': r.recordDate || '',
+        'Principal (₹)': r.principal || '',
+        'Gross Interest (₹)': r.interest || '',
+        'TDS (₹)': r.tds || '',
+        'Net Cashflow (₹)': r.cfAfterTds || '',
+        'O/S Principal': r.osBefore || '',
+        'Status': r.isInv ? 'Investment' : r.date <= today ? 'Past' : 'Upcoming'
+      });
+    });
+  });
+  if (!rows.length) { toast('No data to export', 'warn'); return; }
+  var headers = Object.keys(rows[0]);
+  var csv = headers.join(',') + '\n' + rows.map(function(r) {
+    return headers.map(function(h) {
+      var v = r[h]===undefined||r[h]===null ? '' : String(r[h]);
+      return v.includes(',') ? '"'+v+'"' : v;
+    }).join(',');
+  }).join('\n');
+  downloadText(csv, 'Overall_Cashflow_Summary.csv', 'text/csv');
+  toast('Overall schedule downloaded as CSV ✓', 'success');
+}
+
+function downloadText(text, filename, mime) {
+  var blob = new Blob([text], { type: mime });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ===================== THEME TOGGLE =====================
