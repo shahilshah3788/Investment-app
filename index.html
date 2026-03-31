@@ -4576,7 +4576,7 @@ function renderNCDPortItem(sec, item, idx) {
     + '<div class="port-item-meta">' + ins.type + ' · ' + u + ' units × ₹' + fv.toLocaleString('en-IN') + ' · ISIN: ' + (ins.isins||[]).join(', ') + '</div>'
     + '</div>'
     + '<div class="port-item-actions">'
-    + '<button class="port-item-action" onclick="switchTab('individual',document.querySelector('.tab-btn:nth-child(3)'))">View Schedule →</button>'
+    + '<button class="port-item-action" onclick="switchTab(\'individual\',document.querySelector(\'.tab-btn:nth-child(3)\'))">View Schedule →</button>'
     + '</div>'
     + '</div>'
     + metricsRow(invested, outstanding+interest_recd*0, 0, xirr||undefined, null,
