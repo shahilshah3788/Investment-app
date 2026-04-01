@@ -1740,20 +1740,154 @@ or
 </div>
 
 <!-- ===== EMAIL MODAL ===== -->
+<!-- ===== NOTIFICATION CENTER ===== -->
 <div class="modal-overlay" id="email-modal">
-  <div class="modal" style="width:500px;">
-    <div class="modal-title">📧 Reminder Summary</div>
-    <div class="form-row single">
-      <div class="form-field">
-        <label>Recipient Email (for reference)</label>
-        <input type="email" id="email-to" placeholder="you@example.com">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header" style="padding:18px 22px 0;">
+      <div class="modal-title">🔔 Notification Center</div>
+      <div class="modal-tabs" id="notif-tabs">
+        <button class="modal-tab active" onclick="switchNotifTab('preview')"   id="ntab-preview">📋 Preview</button>
+        <button class="modal-tab"        onclick="switchNotifTab('email')"     id="ntab-email">📧 Email</button>
+        <button class="modal-tab"        onclick="switchNotifTab('whatsapp')"  id="ntab-whatsapp">💬 WhatsApp</button>
+        <button class="modal-tab"        onclick="switchNotifTab('sms')"       id="ntab-sms">📱 SMS</button>
+        <button class="modal-tab"        onclick="switchNotifTab('push')"      id="ntab-push">🔔 Push Alerts</button>
+        <button class="modal-tab"        onclick="switchNotifTab('settings')"  id="ntab-settings">⚙️ Settings</button>
       </div>
     </div>
-    <div class="section-label">Email Preview</div>
-    <div class="email-preview" id="email-preview">—</div>
+    <div class="modal-body" style="padding:18px 22px;max-height:60vh;overflow-y:auto;">
+
+      <!-- PREVIEW -->
+      <div class="modal-step active" id="nstep-preview">
+        <div style="font-size:10px;color:var(--muted);font-family:var(--font-mono);margin-bottom:10px;">Reminder content for the selected period — copy or share via any channel below.</div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:320px;overflow-y:auto;color:var(--text);" id="email-preview">—</div>
+      </div>
+
+      <!-- EMAIL -->
+      <div class="modal-step" id="nstep-email">
+        <div class="form-field" style="margin-bottom:12px;">
+          <label>Your Email Address</label>
+          <input type="email" id="notif-email-to" placeholder="you@example.com" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;font-size:11px;color:var(--muted);margin-bottom:14px;">
+          <strong style="color:var(--text);">How it works:</strong> Clicking "Open in Mail" opens your default email client with the reminder pre-filled. For automated scheduled emails, you would need to configure a backend service (e.g. SendGrid, AWS SES) with this app.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="sendViaEmail()">📧 Open in Mail App</button>
+          <button class="btn btn-ghost" onclick="copyEmailContent()">📋 Copy to Clipboard</button>
+        </div>
+      </div>
+
+      <!-- WHATSAPP -->
+      <div class="modal-step" id="nstep-whatsapp">
+        <div class="form-field" style="margin-bottom:12px;">
+          <label>WhatsApp Number (with country code)</label>
+          <input type="tel" id="notif-wa-number" placeholder="919876543210 (no + or spaces)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+          <div style="font-size:9px;color:var(--muted);margin-top:4px;font-family:var(--font-mono);">e.g. 919876543210 for India (+91 98765 43210)</div>
+        </div>
+        <div style="background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:var(--r);padding:14px;font-size:11px;margin-bottom:14px;">
+          <strong style="color:var(--green);">wa.me deep link:</strong> Opens WhatsApp with the reminder message pre-filled. Works on both mobile and WhatsApp Web. For automated scheduled messages, integrate the WhatsApp Business API (Meta).
+        </div>
+        <button class="btn btn-primary" style="background:#25d366;border-color:#25d366;color:#fff;" onclick="sendViaWhatsApp()">💬 Open in WhatsApp</button>
+      </div>
+
+      <!-- SMS -->
+      <div class="modal-step" id="nstep-sms">
+        <div class="form-field" style="margin-bottom:12px;">
+          <label>Mobile Number (with country code)</label>
+          <input type="tel" id="notif-sms-number" placeholder="+919876543210" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+        </div>
+        <div style="background:rgba(79,142,247,0.06);border:1px solid rgba(79,142,247,0.2);border-radius:var(--r);padding:14px;font-size:11px;margin-bottom:14px;">
+          <strong style="color:var(--accent2);">SMS deep link:</strong> Opens your phone's SMS app with the number and a condensed reminder message pre-filled. Works best on mobile devices. For bulk/automated SMS, integrate Twilio or MSG91.
+        </div>
+        <button class="btn btn-primary" onclick="sendViaSMS()">📱 Open SMS App</button>
+      </div>
+
+      <!-- PUSH -->
+      <div class="modal-step" id="nstep-push">
+        <div style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">Browser Push Notifications</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7;">
+            Enable push notifications to get automatic reminders directly on your device — even when the browser is in the background. Notifications appear at the OS level (like a phone alert).
+          </div>
+        </div>
+        <div id="push-status-block" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:14px;">
+          <div id="push-status-text" style="font-size:12px;font-family:var(--font-mono);color:var(--muted);">Checking notification status…</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+          <button class="btn btn-primary" id="push-enable-btn" onclick="enablePushNotifications()">🔔 Enable Push Notifications</button>
+          <button class="btn btn-ghost" onclick="testPushNotification()">🧪 Send Test Notification</button>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:14px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:8px;">Schedule Automatic Reminders</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div class="form-field">
+              <label>Remind me</label>
+              <select id="push-frequency" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+                <option value="daily">Daily at 9am</option>
+                <option value="weekly" selected>Weekly (Mondays)</option>
+                <option value="upcoming">Only when inflow within 7 days</option>
+                <option value="urgent">Only URGENT (≤3 days)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Minimum amount (₹)</label>
+              <input type="number" id="push-min-amount" value="1000" placeholder="e.g. 1000" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+            </div>
+          </div>
+          <button class="btn btn-ghost" onclick="savePushSchedule()">💾 Save Schedule</button>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="modal-step" id="nstep-settings">
+        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:12px;">Saved Contact Details</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div class="form-field">
+            <label>Email Address</label>
+            <input type="email" id="settings-email" placeholder="your@email.com" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+          </div>
+          <div class="form-field">
+            <label>WhatsApp Number</label>
+            <input type="tel" id="settings-wa" placeholder="919876543210" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+          </div>
+          <div class="form-field">
+            <label>SMS Number</label>
+            <input type="tel" id="settings-sms" placeholder="+919876543210" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+          </div>
+          <div class="form-field">
+            <label>Default Reminder Period</label>
+            <select id="settings-period" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:var(--r);font-family:var(--font-mono);font-size:12px;outline:none;width:100%;">
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30" selected>30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+            </select>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:10px;">Notification Preferences</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px;color:var(--text2);">
+              <input type="checkbox" id="pref-urgent-only" style="accent-color:var(--accent2);">
+              Only notify for urgent payments (≤7 days away)
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px;color:var(--text2);">
+              <input type="checkbox" id="pref-high-value" style="accent-color:var(--accent2);">
+              Only notify for payments above minimum amount
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px;color:var(--text2);">
+              <input type="checkbox" id="pref-popup-on-login" checked style="accent-color:var(--accent2);">
+              Show upcoming reminders popup on login
+            </label>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveNotifSettings()">💾 Save Settings</button>
+      </div>
+
+    </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('email-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="copyEmailContent()">📋 Copy to Clipboard</button>
+      <button class="btn btn-ghost" onclick="closeModal('email-modal')">Close</button>
     </div>
   </div>
 </div>
@@ -3344,6 +3478,9 @@ async function onAuth(user) {
   var sp = document.getElementById('sidebar-user-pill');
   if (sp) sp.innerHTML = '<div style="font-size:10px;font-family:var(--font-mono);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+user.email+'</div>';
   navTo('dashboard');
+  showLoginReminderPopup();
+  loadNotifSettings();
+  schedulePushReminders();
   // Set current date and refresh
   document.getElementById('current-date-display').textContent = fmtDate(getToday());
   refresh();
@@ -6210,6 +6347,377 @@ function switchTab(tab, el) {
     upcoming: 'cashflows', past: 'cashflows', portfolio: 'dashboard'
   };
   navTo(sectionMap[tab] || 'dashboard');
+}
+
+// ═══════════════════════════════════════════════════
+// NOTIFICATION CENTER
+// ═══════════════════════════════════════════════════
+
+// Saved notification settings (localStorage for prefs)
+var notifSettings = {};
+function loadNotifSettings() {
+  try {
+    notifSettings = JSON.parse(localStorage.getItem('notif_settings') || '{}');
+    if (notifSettings.email) {
+      var el = document.getElementById('notif-email-to');
+      if (el) el.value = notifSettings.email;
+      var s = document.getElementById('settings-email');
+      if (s) s.value = notifSettings.email;
+    }
+    if (notifSettings.wa) {
+      var el2 = document.getElementById('notif-wa-number');
+      if (el2) el2.value = notifSettings.wa;
+      var s2 = document.getElementById('settings-wa');
+      if (s2) s2.value = notifSettings.wa;
+    }
+    if (notifSettings.sms) {
+      var el3 = document.getElementById('notif-sms-number');
+      if (el3) el3.value = notifSettings.sms;
+      var s3 = document.getElementById('settings-sms');
+      if (s3) s3.value = notifSettings.sms;
+    }
+    if (notifSettings.popupOnLogin !== false) {
+      var cb = document.getElementById('pref-popup-on-login');
+      if (cb) cb.checked = true;
+    }
+  } catch(e) {}
+}
+
+function saveNotifSettings() {
+  notifSettings.email  = (document.getElementById('settings-email')?.value || '').trim();
+  notifSettings.wa     = (document.getElementById('settings-wa')?.value   || '').trim();
+  notifSettings.sms    = (document.getElementById('settings-sms')?.value  || '').trim();
+  notifSettings.period = document.getElementById('settings-period')?.value || '30';
+  notifSettings.urgentOnly  = document.getElementById('pref-urgent-only')?.checked  || false;
+  notifSettings.highValue   = document.getElementById('pref-high-value')?.checked   || false;
+  notifSettings.popupOnLogin= document.getElementById('pref-popup-on-login')?.checked !== false;
+  localStorage.setItem('notif_settings', JSON.stringify(notifSettings));
+  toast('Notification settings saved ✓', 'success');
+  // Also copy to channel-specific inputs
+  var emailEl = document.getElementById('notif-email-to');
+  if (emailEl && notifSettings.email) emailEl.value = notifSettings.email;
+  var waEl = document.getElementById('notif-wa-number');
+  if (waEl && notifSettings.wa) waEl.value = notifSettings.wa;
+  var smsEl = document.getElementById('notif-sms-number');
+  if (smsEl && notifSettings.sms) smsEl.value = notifSettings.sms;
+}
+
+function savePushSchedule() {
+  notifSettings.pushFrequency = document.getElementById('push-frequency')?.value || 'weekly';
+  notifSettings.pushMinAmount = parseFloat(document.getElementById('push-min-amount')?.value) || 1000;
+  localStorage.setItem('notif_settings', JSON.stringify(notifSettings));
+  schedulePushReminders();
+  toast('Push schedule saved ✓', 'success');
+}
+
+// ── Notification tab switcher ──
+function switchNotifTab(tab) {
+  ['preview','email','whatsapp','sms','push','settings'].forEach(function(t) {
+    var step = document.getElementById('nstep-' + t);
+    var btn  = document.getElementById('ntab-' + t);
+    if (step) step.classList.toggle('active', t === tab);
+    if (btn)  btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'push') checkPushStatus();
+  if (tab === 'settings') loadNotifSettings();
+}
+
+// ── Build the reminder text ──
+function buildReminderText(compact) {
+  var items = getReminderItems();
+  var totalAll = items.reduce(function(a,i) {
+    return a + i.entries.reduce(function(b,e){ return b+e.amount; }, 0);
+  }, 0);
+  var today = getToday();
+  var pEl = document.getElementById('reminder-period');
+  var pVal = pEl ? pEl.value : '30';
+  var days = pVal === 'custom' ? (document.getElementById('reminder-custom-days')?.value||30) : pVal;
+
+  if (compact) {
+    // Short version for WhatsApp/SMS
+    var lines = ['📊 *InvestOS — Upcoming Inflows*'];
+    lines.push('Period: Next ' + days + ' days | Total: ₹' + totalAll.toLocaleString('en-IN', {maximumFractionDigits:0}));
+    lines.push('');
+    if (!items.length) { lines.push('No inflows in this period.'); }
+    else {
+      items.slice(0, 10).forEach(function(item) {
+        var itemTotal = item.entries.reduce(function(a,e){return a+e.amount;},0);
+        var urgFlag = item.urgent ? ' ⚠️' : '';
+        lines.push((item.daysUntil === 0 ? '🔴 TODAY' : item.daysUntil === 1 ? '🟡 Tomorrow' : '📅 ' + fmtDate(item.date)) + urgFlag);
+        item.entries.forEach(function(e) {
+          lines.push('  • ' + e.instrument + ': ₹' + e.amount.toLocaleString('en-IN',{maximumFractionDigits:0}));
+        });
+        if (item.entries.length > 1) {
+          lines.push('  Total: ₹' + itemTotal.toLocaleString('en-IN',{maximumFractionDigits:0}));
+        }
+      });
+      if (items.length > 10) lines.push('… and ' + (items.length-10) + ' more payments');
+    }
+    lines.push('');
+    lines.push('Total Expected: ₹' + totalAll.toLocaleString('en-IN',{maximumFractionDigits:0}));
+    return lines.join('\n');
+  } else {
+    // Full version for email
+    var lines = [
+      'INVESTMENT INFLOW REMINDER — InvestOS',
+      '══════════════════════════════════════════════',
+      'Report Date  : ' + fmtDate(today),
+      'Period       : Next ' + days + ' days',
+      'Instruments  : ' + instruments.map(function(i){return i.name;}).join(', '),
+      '',
+      'UPCOMING INFLOWS',
+      '──────────────────────────────────────────────',
+    ];
+    if (!items.length) { lines.push('No inflows in this period.'); }
+    else {
+      items.forEach(function(item) {
+        var itemTotal = item.entries.reduce(function(a,e){return a+e.amount;},0);
+        lines.push(fmtDate(item.date) + '  (in ' + item.daysUntil + ' day' + (item.daysUntil!==1?'s':'') + ')' + (item.urgent?' ⚠️ URGENT':''));
+        item.entries.forEach(function(e) {
+          lines.push('  • ' + e.instrument + ' [' + (e.isins.join(',')||'—') + ']');
+          lines.push('    Principal  : ₹' + Math.abs(e.principal).toLocaleString('en-IN',{maximumFractionDigits:2}));
+          lines.push('    Interest   : ₹' + e.interest.toLocaleString('en-IN',{maximumFractionDigits:2}));
+          lines.push('    Net (post-TDS): ₹' + e.amount.toLocaleString('en-IN',{maximumFractionDigits:2}));
+        });
+        if (item.entries.length > 1) {
+          lines.push('    ─ Date Total: ₹' + itemTotal.toLocaleString('en-IN',{maximumFractionDigits:2}));
+        }
+        lines.push('');
+      });
+    }
+    lines.push('══════════════════════════════════════════════');
+    lines.push('TOTAL EXPECTED INFLOW : ₹' + totalAll.toLocaleString('en-IN',{maximumFractionDigits:2}));
+    lines.push('');
+    lines.push('Sent from InvestOS · invest.decipherstrategies.com');
+    return lines.join('\n');
+  }
+}
+
+// ── Override openEmailModal to open notification center ──
+function openEmailModal() {
+  loadNotifSettings();
+  var text = buildReminderText(false);
+  var el = document.getElementById('email-preview');
+  if (el) el.textContent = text;
+  document.getElementById('email-modal').classList.add('open');
+  switchNotifTab('preview');
+}
+
+// ── Email: open mailto link ──
+function sendViaEmail() {
+  var emailTo = (document.getElementById('notif-email-to')?.value || notifSettings.email || '').trim();
+  if (emailTo) {
+    // Save for next time
+    notifSettings.email = emailTo;
+    localStorage.setItem('notif_settings', JSON.stringify(notifSettings));
+  }
+  var subject = encodeURIComponent('InvestOS — Upcoming Investment Inflows');
+  var body    = encodeURIComponent(buildReminderText(false));
+  var mailto  = 'mailto:' + encodeURIComponent(emailTo) + '?subject=' + subject + '&body=' + body;
+  window.open(mailto, '_blank');
+  toast('Opening your email client…', 'info');
+}
+
+// ── Copy to clipboard (email content) ──
+function copyEmailContent() {
+  var text = document.getElementById('email-preview')?.textContent || buildReminderText(false);
+  navigator.clipboard.writeText(text)
+    .then(function() { toast('Copied to clipboard ✓', 'success'); })
+    .catch(function() { toast('Copy failed — select and copy manually', 'warn'); });
+}
+
+// ── WhatsApp: wa.me deep link ──
+function sendViaWhatsApp() {
+  var number = (document.getElementById('notif-wa-number')?.value || notifSettings.wa || '').replace(/[^0-9]/g, '');
+  if (!number) { toast('Please enter a WhatsApp number', 'warn'); return; }
+  // Save
+  notifSettings.wa = number;
+  localStorage.setItem('notif_settings', JSON.stringify(notifSettings));
+  var text = encodeURIComponent(buildReminderText(true));
+  var url  = 'https://wa.me/' + number + '?text=' + text;
+  window.open(url, '_blank');
+  toast('Opening WhatsApp…', 'info');
+}
+
+// ── SMS: sms: deep link ──
+function sendViaSMS() {
+  var number = (document.getElementById('notif-sms-number')?.value || notifSettings.sms || '').trim();
+  if (!number) { toast('Please enter a mobile number', 'warn'); return; }
+  notifSettings.sms = number;
+  localStorage.setItem('notif_settings', JSON.stringify(notifSettings));
+  // Condensed message — SMS has 160 char limit per segment
+  var items = getReminderItems();
+  var total = items.reduce(function(a,i){return a+i.entries.reduce(function(b,e){return b+e.amount;},0);},0);
+  var next3 = items.slice(0,3).map(function(i){
+    return fmtDate(i.date)+': ₹'+i.entries.reduce(function(a,e){return a+e.amount;},0).toLocaleString('en-IN',{maximumFractionDigits:0});
+  }).join(' | ');
+  var msg = 'InvestOS Reminder: Next inflows — ' + next3 + (items.length>3?' +more':'') + '. Total: ₹' + total.toLocaleString('en-IN',{maximumFractionDigits:0});
+  var url = 'sms:' + number + (navigator.userAgent.match(/iPhone|iPad/i) ? '&' : '?') + 'body=' + encodeURIComponent(msg);
+  window.location.href = url;
+  toast('Opening SMS app…', 'info');
+}
+
+// ═══════════════════════════════════════
+// BROWSER PUSH NOTIFICATIONS
+// ═══════════════════════════════════════
+
+function checkPushStatus() {
+  var statusEl = document.getElementById('push-status-text');
+  var btnEl    = document.getElementById('push-enable-btn');
+  if (!statusEl) return;
+
+  if (!('Notification' in window)) {
+    statusEl.innerHTML = '<span style="color:var(--red);">✕ Push notifications not supported in this browser.</span> Try Chrome, Firefox, or Edge on desktop.';
+    if (btnEl) btnEl.disabled = true;
+    return;
+  }
+
+  var perm = Notification.permission;
+  if (perm === 'granted') {
+    statusEl.innerHTML = '<span style="color:var(--green);">✓ Push notifications are ENABLED.</span> You will receive alerts based on your schedule below.';
+    if (btnEl) { btnEl.textContent = '✓ Notifications Enabled'; btnEl.disabled = true; }
+  } else if (perm === 'denied') {
+    statusEl.innerHTML = '<span style="color:var(--red);">✕ Push notifications are BLOCKED.</span> To enable: click the 🔒 lock icon in your browser address bar → Site settings → Notifications → Allow.';
+    if (btnEl) btnEl.disabled = true;
+  } else {
+    statusEl.innerHTML = '<span style="color:var(--yellow);">⚬ Push notifications are not yet enabled.</span> Click the button below to enable them.';
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🔔 Enable Push Notifications'; }
+  }
+}
+
+function enablePushNotifications() {
+  if (!('Notification' in window)) { toast('Not supported in this browser', 'warn'); return; }
+  Notification.requestPermission().then(function(perm) {
+    if (perm === 'granted') {
+      checkPushStatus();
+      schedulePushReminders();
+      toast('Push notifications enabled ✓', 'success');
+      testPushNotification();
+    } else if (perm === 'denied') {
+      toast('Notifications blocked — please allow in browser settings', 'warn');
+      checkPushStatus();
+    }
+  });
+}
+
+function testPushNotification() {
+  if (Notification.permission !== 'granted') {
+    toast('Enable notifications first', 'warn');
+    return;
+  }
+  var items = getReminderItems();
+  var total = items.reduce(function(a,i){return a+i.entries.reduce(function(b,e){return b+e.amount;},0);},0);
+  var urgent = items.filter(function(i){return i.urgent;});
+  var body = items.length === 0
+    ? 'No upcoming inflows in the selected period.'
+    : items.length + ' inflow' + (items.length>1?'s':'') + ' upcoming.'
+      + (urgent.length > 0 ? ' ⚠️ ' + urgent.length + ' URGENT!' : '')
+      + ' Total: ₹' + total.toLocaleString('en-IN',{maximumFractionDigits:0});
+
+  var notif = new Notification('InvestOS — Cashflow Reminder', {
+    body: body,
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23c9a96e"/><text y=".9em" font-size="80" x="10">📊</text></svg>',
+    badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%23c9a96e"/></svg>',
+    tag: 'investos-reminder',
+    requireInteraction: items.some(function(i){return i.urgent;})
+  });
+  notif.onclick = function() {
+    window.focus();
+    notif.close();
+    openEmailModal();
+  };
+  toast('Test notification sent ✓', 'success');
+}
+
+// Schedule periodic push reminders using setTimeout
+var pushReminderTimer = null;
+function schedulePushReminders() {
+  if (pushReminderTimer) clearTimeout(pushReminderTimer);
+  if (Notification.permission !== 'granted') return;
+
+  var freq = notifSettings.pushFrequency || 'weekly';
+  var nextMs;
+  var now = new Date();
+
+  if (freq === 'daily') {
+    // Next 9am
+    var next9 = new Date(now);
+    next9.setHours(9, 0, 0, 0);
+    if (next9 <= now) next9.setDate(next9.getDate() + 1);
+    nextMs = next9 - now;
+  } else if (freq === 'weekly') {
+    // Next Monday 9am
+    var nextMon = new Date(now);
+    var daysToMon = (8 - nextMon.getDay()) % 7 || 7;
+    nextMon.setDate(nextMon.getDate() + daysToMon);
+    nextMon.setHours(9, 0, 0, 0);
+    nextMs = nextMon - now;
+  } else {
+    // Check every hour
+    nextMs = 3600000;
+  }
+
+  pushReminderTimer = setTimeout(function() {
+    // Fire the notification
+    var items = getReminderItems();
+    var urgent = items.filter(function(i){return i.urgent;});
+    var minAmt = notifSettings.pushMinAmount || 0;
+    var relevant = items.filter(function(i){
+      return i.entries.some(function(e){return e.amount >= minAmt;});
+    });
+    if (freq === 'urgent' && !urgent.length) {
+      schedulePushReminders(); // check again later
+      return;
+    }
+    if (freq === 'upcoming' && !items.length) {
+      schedulePushReminders();
+      return;
+    }
+    if (relevant.length > 0) testPushNotification();
+    schedulePushReminders(); // schedule next
+  }, Math.min(nextMs, 2147483647)); // clamp to max int32
+
+  var nextDate = new Date(now.getTime() + Math.min(nextMs, 86400000 * 7));
+  console.log('Next push reminder scheduled for:', nextDate.toLocaleString('en-IN'));
+}
+
+// ── Show pop-up reminder on login if enabled ──
+function showLoginReminderPopup() {
+  try {
+    var settings = JSON.parse(localStorage.getItem('notif_settings') || '{}');
+    if (settings.popupOnLogin === false) return;
+  } catch(e) { return; }
+
+  setTimeout(function() {
+    var items = getReminderItems();
+    var urgent = items.filter(function(i){ return i.urgent; });
+    var upcoming7 = items.filter(function(i){ return i.daysUntil <= 7; });
+
+    if (upcoming7.length === 0) return; // nothing urgent
+
+    var total = upcoming7.reduce(function(a,i){
+      return a + i.entries.reduce(function(b,e){return b+e.amount;},0);
+    }, 0);
+
+    // Show a special login reminder toast
+    var container = document.getElementById('toast-container');
+    if (!container) return;
+
+    var div = document.createElement('div');
+    div.className = 'toast warn';
+    div.style.maxWidth = '340px';
+    div.style.cursor = 'pointer';
+    div.innerHTML = '<div style="flex:1;">'
+      + '<div style="font-weight:600;margin-bottom:3px;">⚠️ ' + upcoming7.length + ' inflow' + (upcoming7.length>1?'s':'') + ' in next 7 days</div>'
+      + '<div style="font-size:10px;color:var(--muted);">Total: ₹' + total.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' net · Tap for details</div>'
+      + '</div>'
+      + '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0;">✕</button>';
+    div.onclick = function(e) {
+      if (e.target.tagName !== 'BUTTON') openEmailModal();
+    };
+    container.appendChild(div);
+    setTimeout(function(){ if (div.parentElement) div.remove(); }, 12000);
+  }, 2500); // 2.5 seconds after login
 }
 
 // ===================== THEME TOGGLE =====================
