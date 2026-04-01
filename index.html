@@ -611,26 +611,7 @@
 
 <!-- ── HEADER (with user pill added) ── -->
 
-<div class="header animate-fade-down">
-  <div>
-    <div class="header-title">Investment Schedule</div>
-    <div class="header-sub">Portfolio Cashflow Tracker</div>
-  </div>
-  <div class="header-right">
-    <div class="stat-pill animate-fade-up stagger-1">Current Date<div class="pv" id="current-date-display">—</div></div>
-    <div class="stat-pill animate-fade-up stagger-2">Upcoming (30d)<div class="pv pos" id="hdr-upcoming">—</div></div>
-    <div class="stat-pill animate-fade-up stagger-3">Past Investments<div class="pv neg" id="hdr-past-inv">—</div></div>
-    <div class="stat-pill animate-fade-up stagger-4">Not Reinvested<div class="pv neg" id="hdr-not-reinvested">—</div></div>
-    <!-- THEME TOGGLE -->
-    <button class="theme-toggle animate-fade-up stagger-5" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light mode">🌙</button>
-    <!-- PROFILE BUTTON -->
-    <button class="profile-btn animate-fade-up stagger-6" id="profile-btn" style="display:none" onclick="openProfileModal()">
-      <div class="pavatar" id="profile-avatar-btn">?</div>
-      <span id="profile-name-btn">Profile</span>
-    </button>
-    <button class="signout-btn" id="signout-btn" style="display:none" onclick="doSignOut()">Sign Out</button>
-  </div>
-</div>
+<!-- old header removed -->
 
 <div class="app-shell">
 
@@ -776,165 +757,8 @@
 </div><!-- end main-content -->
 </div><!-- end app-shell -->
 
-<!-- Legacy containers (kept for compatibility but hidden) -->
-<div id="table-container" style="display:none;"></div>
-<div id="dashboard-container" class="dashboard"></div>
-<div id="portfolio-container" style="display:none;"></div>
 
-<!-- ── OLD INSTRUMENT TAGS BAR (hidden, kept for compatibility) ── -->
-<div style="display:none;">
-  <div id="instrument-tags"></div>
-  <div id="metrics-section"></div>
-  <div id="hdr-upcoming"></div>
-  <div id="hdr-past-inv"></div>
-  <div id="hdr-not-reinvested"></div>
-  <div id="met-nominal"></div><div id="met-xirr"></div>
-  <div id="met-upcoming"></div><div id="met-past-inv"></div>
-  <div id="met-past-rep"></div><div id="met-not-reinvested"></div>
-  <div id="pc-invested"></div><div id="pc-outstanding"></div>
-  <div id="pc-outstanding-sub"></div><div id="pc-upcoming"></div>
-  <div id="pc-upcoming-sub"></div><div id="pc-upcoming-trend"></div>
-  <div id="pc-xirr"></div><div id="pc-received"></div>
-  <div id="pc-not-reinvested"></div><div id="current-date-display"></div>
-  <div id="playcard-grid"></div>
-</div>
 
-<div style="display:none;"><div class="main"><div class="instruments-bar">
-    <div id="instrument-tags"></div>
-    <button class="add-btn" onclick="openAddModal()">+ Add Instrument</button>
-    <button class="cas-btn" onclick="openCASModal()">📄 Import from CAS PDF</button>
-    <button class="zerodha-btn" onclick="openZerodhaModal()">🏦 Connect Zerodha</button>
-    <div style="display:flex;gap:6px;margin-left:auto;">
-      <button onclick="downloadAllCSV()" style="background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all var(--transition);" title="Download all instruments as CSV">⬇ CSV</button>
-      <button onclick="downloadAllExcel()" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all var(--transition);" title="Download all instruments as Excel">⬇ Excel</button>
-      <button onclick="downloadOverallCSV()" style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);color:var(--yellow);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all var(--transition);" title="Download overall cashflow schedule">⬇ Schedule</button>
-    </div>
-    <button class="reminder-btn" onclick="toggleReminders()">🔔 Reminders <span id="reminder-badge" style="display:none;background:var(--yellow);color:#0d0f14;border-radius:10px;padding:0 6px;font-size:9px;margin-left:2px;"></span></button>
-  </div>
-
-  <!-- REMINDERS PANEL -->
-  <div class="reminders-panel" id="reminders-panel" style="display:none;">
-    <div class="reminders-header">
-      <div>
-        <div class="reminders-title">🔔 Upcoming Inflow Reminders</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:3px;">Showing future inflows (principal repayments + interest) based on selected period</div>
-      </div>
-      <div class="reminder-controls">
-        <div class="rc">
-          <label>Time Period</label>
-          <select id="reminder-period" onchange="onPeriodChange()">
-            <option value="7">Next 7 days</option>
-            <option value="14">Next 14 days</option>
-            <option value="30" selected>Next 30 days</option>
-            <option value="60">Next 60 days</option>
-            <option value="90">Next 90 days</option>
-            <option value="180">Next 6 months</option>
-            <option value="365">Next 1 year</option>
-            <option value="custom">Custom…</option>
-          </select>
-        </div>
-        <div class="rc" id="custom-days-wrap" style="display:none;">
-          <label>Days</label>
-          <input type="number" id="reminder-custom-days" value="45" min="1" style="width:70px;" oninput="renderReminders()">
-        </div>
-        <div class="rc">
-          <label>Urgent if within</label>
-          <select id="reminder-urgency" onchange="renderReminders()">
-            <option value="3">3 days</option>
-            <option value="7" selected>7 days</option>
-            <option value="14">14 days</option>
-          </select>
-        </div>
-        <div class="rc">
-          <label>Min Inflow (₹)</label>
-          <input type="number" id="reminder-min" value="0" min="0" style="width:90px;" oninput="renderReminders()">
-        </div>
-        <button class="btn btn-yellow btn-sm" style="align-self:flex-end;" onclick="openEmailModal()">📧 Summary</button>
-      </div>
-    </div>
-    <div id="reminders-list"></div>
-  </div>
-
-  <!-- ── PLAYCARDS ── -->
-  <div class="playcard-grid" id="playcard-grid">
-    <div class="playcard stagger-1" style="--i:0;cursor:pointer;" onclick="openDrillDown('invested')">
-      <div class="playcard-accent" style="background:linear-gradient(90deg,var(--accent),#e8c07a)"></div>
-      <span class="playcard-icon">💼</span>
-      <div class="playcard-label">Total Invested</div>
-      <div class="playcard-value acc" id="pc-invested">—</div>
-      <div class="playcard-sub" id="pc-invested-sub">across all instruments</div>
-      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
-    </div>
-    <div class="playcard stagger-2" style="cursor:pointer;" onclick="openDrillDown('outstanding')">
-      <div class="playcard-accent" style="background:linear-gradient(90deg,var(--green),#86efac)"></div>
-      <span class="playcard-icon">📈</span>
-      <div class="playcard-label">Outstanding Principal</div>
-      <div class="playcard-value pos" id="pc-outstanding">—</div>
-      <div class="playcard-sub" id="pc-outstanding-sub">currently deployed</div>
-      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
-    </div>
-    <div class="playcard stagger-3" style="cursor:pointer;" onclick="openDrillDown('upcoming')">
-      <div class="playcard-accent" style="background:linear-gradient(90deg,var(--accent2),#93c5fd)"></div>
-      <span class="playcard-icon">🔮</span>
-      <div class="playcard-label">Upcoming Inflows</div>
-      <div class="playcard-value" style="color:var(--accent2)" id="pc-upcoming">—</div>
-      <div class="playcard-sub" id="pc-upcoming-sub">next 30 days</div>
-      <div class="playcard-trend" id="pc-upcoming-trend"></div>
-      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
-    </div>
-    <div class="playcard stagger-4" style="cursor:pointer;" onclick="openDrillDown('xirr')">
-      <div class="playcard-accent" style="background:linear-gradient(90deg,var(--yellow),#fde68a)"></div>
-      <span class="playcard-icon">⚡</span>
-      <div class="playcard-label">Avg XIRR</div>
-      <div class="playcard-value" style="color:var(--yellow)" id="pc-xirr">—</div>
-      <div class="playcard-sub">weighted average return</div>
-      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
-    </div>
-    <div class="playcard stagger-5" style="cursor:pointer;" onclick="openDrillDown('received')">
-      <div class="playcard-accent" style="background:linear-gradient(90deg,#a78bfa,#c4b5fd)"></div>
-      <span class="playcard-icon">✅</span>
-      <div class="playcard-label">Received Returns</div>
-      <div class="playcard-value pos" id="pc-received">—</div>
-      <div class="playcard-sub">total cashflows received</div>
-      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
-    </div>
-    <div class="playcard stagger-6" style="cursor:pointer;" onclick="openDrillDown('idle')">
-      <div class="playcard-accent" style="background:linear-gradient(90deg,var(--red),#fca5a5)"></div>
-      <span class="playcard-icon">🔄</span>
-      <div class="playcard-label">Not Reinvested</div>
-      <div class="playcard-value neg" id="pc-not-reinvested">—</div>
-      <div class="playcard-sub">idle capital</div>
-      <div style="position:absolute;bottom:12px;right:14px;font-size:9px;color:var(--muted);">tap for details →</div>
-    </div>
-  </div>
-
-  <!-- TABS -->
-  <div class="tabs animate-fade-up">
-    <button class="tab-btn" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
-    <button class="tab-btn" onclick="switchTab('overall',this)">📋 Overall Summary</button>
-    <button class="tab-btn active" onclick="switchTab('individual',this)">📑 By Instrument</button>
-    <button class="tab-btn" onclick="switchTab('upcoming',this)">⏰ Upcoming</button>
-    <button class="tab-btn" onclick="switchTab('past',this)">✅ Past</button>
-    <button class="tab-btn" onclick="switchTab('portfolio',this)" style="border-color:rgba(168,85,247,0.4);color:#a855f7;">🗂 Portfolio</button>
-  </div>
-
-  <!-- METRICS -->
-  <div class="metrics-section" id="metrics-section">
-    <div class="metric-block"><div class="label">Nominal %</div><div class="val accent" id="met-nominal">—</div></div>
-    <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">XIRR %</div><div class="val blue" id="met-xirr">—</div></div>
-    <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Upcoming Cashflows (₹)</div><div class="val pos" id="met-upcoming">—</div></div>
-    <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Past Investments (₹)</div><div class="val neg" id="met-past-inv">—</div></div>
-    <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Past Repayments (₹)</div><div class="val pos" id="met-past-rep">—</div></div>
-    <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Not Reinvested (₹)</div><div class="val neg" id="met-not-reinvested">—</div></div>
-    <div class="metric-divider"></div>
-    <div class="metric-block"><div class="label">Upcoming Days</div><input class="filter-input" type="number" id="days-upcoming" value="30" min="1" oninput="refresh()"></div>
-    <div class="metric-block"><div class="label">Past Days</div><input class="filter-input" type="number" id="days-past" value="30" min="1" oninput="refresh()"></div>
-  </div>
 
 
 
@@ -1015,7 +839,7 @@
       <div class="form-field">
         <label>Dirty Price / Total Cost (₹)</label>
         <input type="number" id="f-dirty-price" step="0.01" placeholder="Auto-calculated" readonly
-          style="background:var(--surface2);color:var(--muted);" id="f-dirty-price">
+          style="background:var(--surface2);color:var(--muted);">
       </div>
     </div>
 
@@ -2149,178 +1973,15 @@ function renderEmpty() {
 }
 
 function renderOverall(tab) {
-  const today = getToday();
-  // Enhanced: compute totals across all instruments
-  var allCFRows = [];
-  instruments.forEach(function(ins) {
-    computeRows(ins).forEach(function(r) { allCFRows.push({ins: ins, r: r}); });
-  });
-  var grandInvested = allCFRows.filter(function(x){return x.r.isInv;}).reduce(function(a,x){return a+Math.abs(x.r.principal);},0);
-  var grandGrossInt = allCFRows.filter(function(x){return !x.r.isInv;}).reduce(function(a,x){return a+x.r.interest;},0);
-  var grandTDS      = allCFRows.reduce(function(a,x){return a+x.r.tds;},0);
-  var grandNetInt   = grandGrossInt - grandTDS;
-  var grandNetCF    = grandNetInt + grandInvested;
-
-  let rows = mergeRows(instruments.map(ins => ({ rows: computeRows(ins) })));
-  if (tab === 'upcoming') rows = rows.filter(r => r.date > today);
-  else if (tab === 'past') rows = rows.filter(r => r.date <= today);
-
-  // Build a total face value for the portfolio
-  const portFace = instruments.reduce((a,i) => a + ((i.faceValue||1000)*(i.units||1)), 0) || 1000;
-  const portUnits = instruments.reduce((a,i) => a + (i.units||1), 0) || 1;
-
-  var tableRows = rows.map(function(r, ri) {
-    var dateStr   = fmtDate(r.date);
-    var rowClass  = r.date <= today ? 'row-past' : '';
-    // Find which instruments contribute on this date
-    var contribs  = instruments.filter(function(ins) {
-      return ins.cashflows.some(function(cf) { return cf.date === r.date.toISOString().slice(0,10); });
-    });
-    var cFace  = contribs.length ? contribs.reduce(function(a,i){return a+((i.faceValue||1000)*(i.units||1));},0) : portFace;
-    var cUnits = contribs.length ? contribs.reduce(function(a,i){return a+(i.units||1);},0) : portUnits;
-    return '<tr class="' + rowClass + '" id="tr-overall-' + ri + '">'
-      + '<td class="date-col">' + dateStr + '</td>'
-      + '<td>' + fmtNum(r.total_principal) + '</td>'
-      + '<td>' + fmtNum(r.total_interest) + '</td>'
-      + '<td>' + fmtNum(r.total_cashflow) + '</td>'
-      + '<td style="border-right:2px solid var(--border);">' + fmtNum(r.total_cfAfterTds) + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">' + (r.total_principal!==0?fmtPerUnit(r.total_principal,cUnits):'–') + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--accent2);border-right:2px solid var(--border);">' + (r.total_interest!==0?fmtPerUnit(r.total_interest,cUnits):'–') + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">' + (r.total_principal!==0?fmtPer100raw(r.total_principal,cFace):'–') + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">' + (r.total_interest!==0?fmtPer100raw(r.total_interest,cFace):'–') + '</td>'
-      + '</tr>';
-  }).join('');
-
-  // Grand summary cards
-  var sumCards = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px;">';
-  var cards = [
-    {label:'Total Invested', val:'₹'+grandInvested.toLocaleString('en-IN',{maximumFractionDigits:0}), color:'var(--red)'},
-    {label:'Gross Interest', val:'₹'+grandGrossInt.toLocaleString('en-IN',{maximumFractionDigits:0}), color:'var(--green)'},
-    {label:'TDS @10%',       val:'₹'+grandTDS.toLocaleString('en-IN',{maximumFractionDigits:0}),      color:'var(--red)'},
-    {label:'Net Interest',   val:'₹'+grandNetInt.toLocaleString('en-IN',{maximumFractionDigits:0}),   color:'var(--green)'},
-    {label:'Net Return %',   val: grandInvested>0 ? ((grandNetInt/grandInvested)*100).toFixed(2)+'%' : '—', color:'var(--accent2)'},
-  ];
-  if (instruments.length > 0 && instruments[0].xirr > 0) {
-    var avgXirr = instruments.reduce(function(a,i){return a+i.xirr;},0) / instruments.length;
-    cards.push({label:'Avg XIRR', val:(avgXirr*100).toFixed(4)+'%', color:'var(--accent)'});
-  }
-  cards.forEach(function(card) {
-    sumCards += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;text-align:center;">'
-      + '<div style="font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-bottom:4px;">'+card.label+'</div>'
-      + '<div style="font-size:16px;font-weight:700;font-family:var(--font-mono);color:'+card.color+';">'+card.val+'</div>'
-      + '</div>';
-  });
-  sumCards += '</div>';
-
-  document.getElementById('table-container').innerHTML = sumCards +
-    '<div class="table-wrap"><table>'
-    + '<thead>'
-    + '<tr>'
-    + '<th class="col-date" rowspan="2">Date</th>'
-    + '<th colspan="4" style="border-right:2px solid var(--border);">Overall Portfolio</th>'
-    + '<th colspan="2" style="color:var(--accent2);border-right:2px solid var(--border);">Per Unit</th>'
-    + '<th colspan="2" style="color:var(--yellow);">Per ₹100 Face Value</th>'
-    + '</tr>'
-    + '<tr>'
-    + '<th>Principal</th><th>Interest</th><th>Cashflows</th><th style="border-right:2px solid var(--border);">After TDS</th>'
-    + '<th style="color:var(--accent2);">Principal</th><th style="color:var(--accent2);border-right:2px solid var(--border);">Interest</th>'
-    + '<th style="color:var(--yellow);">Principal</th><th style="color:var(--yellow);">Interest</th>'
-    + '</tr>'
-    + '</thead>'
-    + '<tbody>' + tableRows + '</tbody>'
-    + '</table></div>';
+  // Deprecated — handled by renderCurrentPage()
+  renderCurrentPage();
 }
 
 function renderIndividual() {
-  if (!instruments.length) { renderEmpty(); return; }
-  const today = getToday();
-  const dateSet = new Set();
-  instruments.forEach(ins => ins.cashflows.forEach(cf => dateSet.add(new Date(cf.date).toISOString().slice(0,10))));
-  const dates = [...dateSet].sort();
-  const rowsByDate = {};
-  dates.forEach(dk => { rowsByDate[dk] = {}; });
-  instruments.forEach(ins => computeRows(ins).forEach(r => { rowsByDate[r.date.toISOString().slice(0,10)][ins.id] = r; }));
-
-  const instHeaders = instruments.map(ins =>
-    `<th colspan="4">${ins.name}<br><span style="font-size:8px;color:var(--muted);font-weight:400;">${(ins.isins||[]).join(', ')}</span></th>`
-  ).join('') + `<th colspan="4" style="color:var(--accent);">Overall</th>`;
-
-  const subH = [...instruments].map(ins =>
-    `<th>Principal</th><th>Interest</th><th>Per Unit</th><th style="border-right:1px solid var(--border);">Aft TDS</th>`
-  ).join('') + `<th>Principal</th><th>Interest</th><th>Cashflows</th><th>Aft TDS</th>`;
-
-  const bodyRows = dates.map(dk => {
-    const d = new Date(dk);
-    let tP=0,tI=0,tCF=0,tAT=0;
-    const cells = instruments.map(ins => {
-      const r = rowsByDate[dk][ins.id];
-      if (!r) return `<td class="zero">–</td><td class="zero">–</td><td class="zero">–</td><td class="zero" style="border-right:1px solid var(--border);">–</td>`;
-      tP+=r.principal; tI+=r.interest; tCF+=r.cashflow; tAT+=r.cfAfterTds;
-      const u = ins.units || 1;
-      return `<td>${fmtNum(r.principal)}</td><td>${fmtNum(r.interest)}</td><td style="font-size:10px;color:var(--accent2);">${fmtPerUnit(r.cashflow,u)}</td><td style="border-right:1px solid var(--border);">${fmtNum(r.cfAfterTds)}</td>`;
-    }).join('');
-    return `<tr class="${d<=today?'row-past':''}">
-      <td class="date-col">${fmtDate(d)}</td>${cells}
-      <td>${fmtNum(tP)}</td><td>${fmtNum(tI)}</td><td>${fmtNum(tCF)}</td><td>${fmtNum(tAT)}</td>
-    </tr>`;
-  }).join('');
-
-  // Build instrument panels using string concatenation (no nested template literals)
-  var instrumentPanels = instruments.map(function(ins) {
-    var u = ins.units || 1;
-    var fv = ins.faceValue || 1000;
-    var pp = ins.purchasePrice || 0;
-    var ai = ins.accruedPaid || 0;
-    var dirtyTotal = pp > 0 ? (pp * u + ai) : 0;
-    var xirrPct = ins.xirr > 0 ? ' · XIRR: <strong style="color:var(--green);">'+( ins.xirr*100).toFixed(2)+'%</strong>' : '';
-    var ppInfo = pp > 0
-      ? ' · <span style="color:var(--accent2);">Purchase: ₹'+pp.toLocaleString('en-IN',{maximumFractionDigits:2})+'/unit'
-        + ' | Dirty: ₹'+dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:0})+' total'
-        + ' | ₹'+((dirtyTotal/((fv*u)))*100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'/₹100</span>'
-      : '';
-    var isinSpan = ins.isins && ins.isins.length
-      ? '<span style="font-size:9px;color:var(--muted);font-family:\'DM Mono\',monospace;">'+ins.isins.join(', ')+'</span>' : '';
-    var ratingBadge = ins.creditRating && ins.creditRating.rating
-      ? '<span class="rating-badge '+getRatingClass(ins.creditRating.rating)+'">'+ins.creditRating.rating+'</span>' : '';
-
-    return '<div style="margin-bottom:20px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">'
-      + '<div style="background:var(--surface2);padding:12px 16px;">'
-      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
-      + '<div>'
-      + '<span style="font-family:\'Playfair Display\',serif;font-size:15px;color:var(--accent);">'+ins.name+'</span>'
-      + ' ' + ratingBadge + ' ' + isinSpan
-      + '<div style="margin-top:4px;font-size:10px;color:var(--muted);">'
-      + ins.type + ' &nbsp;·&nbsp; '
-      + u + ' units × ₹'+fv.toLocaleString('en-IN')+' = ₹'+(u*fv).toLocaleString('en-IN')+' face'
-      + (ins.nominal > 0 ? ' &nbsp;·&nbsp; Nominal: <strong>'+(ins.nominal*100).toFixed(4)+'%</strong>' : '')
-      + xirrPct
-      + ppInfo
-      + '</div>'
-      + '</div>'
-      + '<div style="display:flex;gap:6px;flex-shrink:0;">'
-      + '<button onclick="openAddModal(\''+ins.id+'\')" class="btn btn-ghost btn-sm">✎ Edit</button>'
-      + '<button onclick="openPVModal(\''+ins.id+'\')" class="btn btn-ghost btn-sm" style="color:var(--accent2);border-color:rgba(79,142,247,0.3);">📐 PV / XIRR</button>'
-      + '<button onclick="openSellModal(\''+ins.id+'\')" class="btn-sell">Sell →</button>'
-      + '<button onclick="addNewCashflowRow(\''+ins.id+'\')" class="btn btn-ghost btn-sm" style="color:var(--green);border-color:rgba(52,211,153,0.3);">+ Row</button>'
-      + '</div>'
-      + '</div>'
-      + '</div>'
-      + '<div id="sched-'+ins.id+'" style="padding:0;">'+renderInstrumentCashflowTable(ins)+'</div>'
-      + '</div>';
-  }).join('');
-
-  var crossTable = '<details style="margin-bottom:16px;">'
-    + '<summary style="cursor:pointer;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:11px;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px;">'
-    + '<span style="font-size:9px;">▸</span> Cross-Instrument Date View (click to expand)'
-    + '</summary>'
-    + '<div class="table-wrap" style="overflow-x:auto;max-height:280px;margin-top:8px;">'
-    + '<table><thead><tr><th class="col-date" rowspan="2">Date</th>'+instHeaders+'</tr><tr>'+subH+'</tr></thead>'
-    + '<tbody>'+bodyRows+'</tbody></table></div></details>';
-
-  document.getElementById('table-container').innerHTML = instrumentPanels + crossTable;
+  // Deprecated — handled by renderCurrentPage()
+  renderCurrentPage();
 }
 
-// ===================== REMINDERS =====================
 function toggleReminders() {
   remindersVisible = !remindersVisible;
   document.getElementById('reminders-panel').style.display = remindersVisible ? 'block' : 'none';
@@ -3059,17 +2720,12 @@ function saveInstrument() {
 
 // ===================== ACTIONS =====================
 function switchTab(tab, el) {
-  currentTab = tab;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  const isDash = tab === 'dashboard';
-  const isPort = tab === 'portfolio';
-  document.getElementById('table-container').style.display  = (isDash || isPort) ? 'none' : 'block';
-  document.getElementById('dashboard-container').className  = isDash ? 'dashboard active' : 'dashboard';
-  document.getElementById('metrics-section').style.display  = (isDash || isPort) ? 'none' : 'flex';
-  document.getElementById('portfolio-container').style.display = isPort ? 'block' : 'none';
-  if (isPort) renderPortfolio();
-  else refresh();
+  // Map old tab names to new nav sections
+  var sectionMap = {
+    dashboard: 'dashboard', overall: 'bonds', individual: 'bonds',
+    upcoming: 'cashflows', past: 'cashflows', portfolio: 'dashboard'
+  };
+  navTo(sectionMap[tab] || 'dashboard');
 }
 
 function selectInstrument(id) { activeInstrumentId = activeInstrumentId===String(id) ? null : String(id); refresh(); }
@@ -3147,90 +2803,8 @@ function computeDashboardData() {
 }
 
 function renderDashboard() {
-  const el = document.getElementById('dashboard-container');
-  if (!instruments.length) {
-    el.innerHTML = `<div class="no-data-dash"><div class="icon">📈</div>Add instruments to see your dashboard.</div>`;
-    return;
-  }
-
-  const d = computeDashboardData();
-
-  // KPI row
-  const kpiHTML = `
-    <div class="dash-kpi-row">
-      <div class="dash-kpi">
-        <div class="dk-label">Total Invested</div>
-        <div class="dk-value">${fmtCcy(d.totalInvested)}</div>
-        <div class="dk-sub">${instruments.length} instrument${instruments.length!==1?'s':''}</div>
-      </div>
-      <div class="dash-kpi green">
-        <div class="dk-label">Outstanding Principal</div>
-        <div class="dk-value" style="color:var(--green)">${fmtCcy(d.totalOutstanding)}</div>
-        <div class="dk-sub">${((d.totalOutstanding/d.totalInvested)*100||0).toFixed(1)}% of invested</div>
-      </div>
-      <div class="dash-kpi blue">
-        <div class="dk-label">Pending Returns</div>
-        <div class="dk-value" style="color:var(--accent2)">${fmtCcy(d.totalPending)}</div>
-        <div class="dk-sub">Future cashflows (after TDS)</div>
-      </div>
-      <div class="dash-kpi yellow">
-        <div class="dk-label">Received Returns</div>
-        <div class="dk-value" style="color:var(--yellow)">${fmtCcy(d.totalReceived)}</div>
-        <div class="dk-sub">Past cashflows (after TDS)</div>
-      </div>
-      <div class="dash-kpi">
-        <div class="dk-label">Avg XIRR</div>
-        <div class="dk-value" style="color:var(--accent)">${fmtPct(d.byInstrument.length ? d.byInstrument.reduce((a,i)=>a+i.xirr,0)/d.byInstrument.length : 0)}</div>
-        <div class="dk-sub">Weighted avg across instruments</div>
-      </div>
-    </div>`;
-
-  // Pie chart: by instrument invested
-  const instPieHTML = buildPieCard(
-    'By Instrument — Invested Amount',
-    'Allocation of total invested capital across instruments',
-    d.byInstrument.map((ins, i) => ({ label: ins.name, value: ins.invested, color: PIE_COLORS[i % PIE_COLORS.length], sub: fmtCcy(ins.invested) })),
-    d.totalInvested,
-    'inst-invested'
-  );
-
-  // Pie chart: by instrument outstanding
-  const instOutHTML = buildPieCard(
-    'By Instrument — Outstanding Principal',
-    'Current outstanding principal per instrument',
-    d.byInstrument.map((ins, i) => ({ label: ins.name, value: ins.outstanding, color: PIE_COLORS[i % PIE_COLORS.length], sub: fmtCcy(ins.outstanding) })),
-    d.totalOutstanding,
-    'inst-outstanding'
-  );
-
-  // Pie chart: by ISIN invested
-  const isinPieHTML = buildPieCard(
-    'By ISIN — Invested Amount',
-    'Capital allocation split across individual ISINs',
-    d.byISIN.map((item, i) => ({ label: item.isin, value: item.invested, color: PIE_COLORS[i % PIE_COLORS.length], sub: item.instrument })),
-    d.byISIN.reduce((a,x)=>a+x.invested,0),
-    'isin-invested'
-  );
-
-  // Pie chart: by ISIN pending returns
-  const isinPendHTML = buildPieCard(
-    'By ISIN — Pending Returns',
-    'Future inflows (after TDS) split by ISIN',
-    d.byISIN.map((item, i) => ({ label: item.isin, value: item.pendingReturns, color: PIE_COLORS[i % PIE_COLORS.length], sub: item.instrument })),
-    d.byISIN.reduce((a,x)=>a+x.pendingReturns,0),
-    'isin-pending'
-  );
-
-  // Instrument detail table
-  const tableHTML = buildInstrumentTable(d.byInstrument, d.totalInvested);
-
-  el.innerHTML = kpiHTML +
-    `<div class="dash-charts-row">${instPieHTML}${instOutHTML}</div>` +
-    `<div class="dash-charts-row">${isinPieHTML}${isinPendHTML}</div>` +
-    tableHTML;
-
-  // Animate pie slices
-  ['inst-invested','inst-outstanding','isin-invested','isin-pending'].forEach(id => animatePie(id));
+  // Deprecated — handled by renderCurrentPage()
+  renderCurrentPage();
 }
 
 function buildPieCard(title, sub, items, total, svgId) {
@@ -4311,7 +3885,7 @@ async function lookupISIN() {
           <span class="k">${k}</span>
           <span class="v">${fmtVal(v)}</span>
         </div>`).join('')}
-      <div id="isin-source-badges" style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;">
+      <div id="isin-source-badges-2" style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;">
         ${['BSE','NSE','NSDL','CDSL'].map(src => `
           <span style="font-size:9px;padding:2px 7px;border-radius:3px;
             background:${all[src]?'rgba(74,222,128,0.12)':'var(--surface2)'};
@@ -5913,7 +5487,7 @@ function navTo(section) {
   if (subEl)   subEl.textContent = info.sub;
 
   // Show/hide subnav (not for dashboard or cashflows)
-  var showSubnav = !['dashboard', 'cashflows'].includes(section);
+  var showSubnav = !['dashboard'].includes(section);
   var subnavEl = document.getElementById('subnav');
   if (subnavEl) subnavEl.style.display = showSubnav ? 'flex' : 'none';
 
