@@ -4180,12 +4180,7 @@ function calcPV() {
     if (r > -0.99 && r < 50 && isFinite(r)) xirr = r;
   }
 
-  // ── Gain/Loss ──
-  const pvGain = dirtyTotal > 0 ? pv - dirtyTotal : null;
-  const currentMV = marketPriceEl > 0 ? marketPriceEl * units : pv;
-  const pnl = dirtyTotal > 0 ? currentMV - dirtyTotal : null;
-
-  // ── Gain/Loss vs actual purchase ──
+  // ── Gain/Loss vs actual purchase price ──
   const pvGain = actualDirtyTot > 0 ? cleanPrice - actualDirtyTot : null;
   const pnl    = pvGain;
 
