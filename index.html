@@ -710,7 +710,7 @@
   <div class="subnav" id="subnav" style="display:none;">
     <button class="subnav-tab active" id="subtab-dashboard" onclick="switchSubTab('dashboard')">Dashboard</button>
     <button class="subnav-tab" id="subtab-summary" onclick="switchSubTab('summary')">Summary</button>
-    <button class="subnav-tab" id="subtab-instruments" onclick="switchSubTab('instruments')">Instruments</button>
+    <button class="subnav-tab" id="subtab-instruments" onclick="switchSubTab(\'instruments\')">Instruments</button>
     <button class="subnav-tab" id="subtab-cashflows" onclick="switchSubTab('cashflows')">Cashflows</button>
   </div>
 
@@ -811,13 +811,13 @@
         <input type="number" id="f-units" value="1" min="1" step="1" placeholder="e.g. 100" oninput="calcDirtyPrice()">
       </div>
       <div class="form-field">
-        <label>Face Value per Unit (₹)</label>
+        <label>Face Value per Unit (₹) <span style="font-size:9px;color:var(--muted);">schedule only</span></label>
         <input type="number" id="f-facevalue" value="1000" min="1" step="1" placeholder="e.g. 1000">
       </div>
     </div>
     <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
       <div class="form-field">
-        <label>Purchase Price per Unit (₹) <span style="color:var(--accent2);font-size:9px;">for PV/YTM</span></label>
+        <label>Purchase Price per Unit (₹) <span style="color:var(--accent2);font-size:9px;">= investment ÷ units | use 📐 Calc PV</span></label>
         <div style="display:flex;gap:6px;align-items:center;">
           <input type="number" id="f-purchase-price" step="0.01" placeholder="e.g. 980 or auto-calc →" style="flex:1;" oninput="calcDirtyPrice()">
           <button type="button" class="btn btn-ghost btn-sm" onclick="autocalcPurchasePrice()" title="Calculate PV from cashflows at the yield below" style="white-space:nowrap;font-size:9px;color:var(--accent2);border-color:rgba(91,141,238,0.3);">📐 Calc PV</button>
@@ -829,7 +829,11 @@
         </div>
       </div>
       <div class="form-field">
-        <label>Purchase Date</label>
+        <label>ISIN Start Date <span style="font-size:9px;color:var(--muted);">(cashflows from this date)</span></label>
+        <input type="date" id="f-isin-start-date">
+      </div>
+      <div class="form-field">
+        <label>Purchase / Investment Date <span style="font-size:9px;color:var(--muted);">(PV &amp; accrued from here)</span></label>
         <input type="date" id="f-purchase-date">
       </div>
       <div class="form-field">
@@ -963,7 +967,7 @@
             </select>
           </div>
           <div class="form-field">
-            <label>Investment Date</label>
+            <label>ISIN Start Date</label>
             <input type="date" id="ag-start" oninput="previewAutoGenerate()">
           </div>
           <div class="form-field">
@@ -1211,39 +1215,42 @@ or
 
 <!-- ===== SELL UNITS MODAL ===== -->
 <div class="modal-overlay" id="sell-modal">
-  <div class="modal" style="max-width:500px;">
+  <div class="modal" style="max-width:600px;">
     <div class="modal-header">
       <div class="modal-title" id="sell-modal-title">Sell Units</div>
     </div>
     <div class="modal-body">
-      <div class="sell-modal-info" id="sell-modal-info"></div>
+      <div class="sell-modal-info" id="sell-modal-info" style="margin-bottom:14px;"></div>
+      <!-- Inputs: only Sale Date, Units, XIRR -->
       <div class="form-row triple">
         <div class="form-field">
-          <label>Sale Date *</label>
-          <input type="date" id="sell-date">
+          <label>Sale / Trade Date *</label>
+          <input type="date" id="sell-date" oninput="calcSellProceeds()">
         </div>
         <div class="form-field">
           <label>Units to Sell *</label>
           <input type="number" id="sell-units" min="1" step="1" placeholder="e.g. 1" oninput="calcSellProceeds()">
         </div>
         <div class="form-field">
-          <label>Sale Price per Unit (₹) *</label>
-          <input type="number" id="sell-price" step="0.01" placeholder="e.g. 98500" oninput="calcSellProceeds()">
+          <label>Sale XIRR / Yield % <span style="font-size:9px;color:var(--muted);">or enter price below</span></label>
+          <input type="number" id="sell-xirr" step="0.01" placeholder="e.g. 13.80" oninput="calcSellProceeds()">
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label>Accrued Interest Receivable (₹)</label>
-          <input type="number" id="sell-accrued" step="0.01" value="0" placeholder="0" oninput="calcSellProceeds()">
+          <label>Sale Price per Unit (₹) <span style="font-size:9px;color:var(--accent2);">auto-calc from XIRR, or enter manually</span></label>
+          <input type="number" id="sell-price" step="0.01" placeholder="Auto-calculated from XIRR" oninput="onSellPriceManual()">
         </div>
         <div class="form-field">
           <label>Notes</label>
-          <input type="text" id="sell-notes" placeholder="e.g. Sold on secondary market">
+          <input type="text" id="sell-notes" placeholder="e.g. Secondary market sale">
         </div>
       </div>
-      <div id="sell-result" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-top:4px;display:none;">
-        <div style="font-size:9px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-bottom:8px;">Sale Summary</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;" id="sell-summary-grid"></div>
+      <!-- Auto-calculated results -->
+      <div id="sell-result" style="display:none;margin-top:4px;">
+        <div style="font-size:9px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);">Calculated Sale Details</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px;" id="sell-summary-grid"></div>
+        <div style="font-size:9px;color:var(--muted);font-family:var(--font-mono);margin-top:6px;" id="sell-calc-note"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1783,9 +1790,16 @@ function initDemo() {
 function getToday() { return new Date('2026-03-17'); }
 
 function fmtDate(d) {
-  if (!(d instanceof Date)) d = new Date(d);
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (!d) return '—';
+  if (!(d instanceof Date) || isNaN(d)) d = new Date(d);
+  if (isNaN(d)) return '—';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dd = String(d.getDate()).padStart(2,'0');
+  return dd + '-' + months[d.getMonth()] + '-' + d.getFullYear();
 }
+
+// Alias for display-only short version (same format)
+function fmtDateShort(d) { return fmtDate(d); }
 
 function fmtNum(n) {
   if (!n || isNaN(n) || n === 0) return '<span class="zero">–</span>';
@@ -1823,11 +1837,27 @@ function computeRows(ins) {
   const tdr = ins.tdsRate   || 0.10;
   const totalFace = u * fv;
 
-  // Sort cashflows chronologically for running O/S calculation
-  const sorted = [...ins.cashflows].sort((a,b) => a.date.localeCompare(b.date));
-  let outstanding = 0;
+  // Sort cashflows chronologically
+  const sorted = [...ins.cashflows].sort((a, b) => a.date.localeCompare(b.date));
+
+  // ── Pass 1: Build running outstanding principal ──
+  // Outstanding is the CLOSING balance AFTER each payment date
+  // Interest is charged on the O/S at the START of each period (closing of previous)
+  let outstanding = 0;   // closing balance after each row
   let cumCF = 0;
   let prevDate = null;
+
+  // Pre-compute closing O/S after each row
+  const closingOS = [];
+  sorted.forEach(cf => {
+    const p = cf.principal || 0;
+    if (p < 0) outstanding += Math.abs(p);   // investment: O/S increases
+    else if (p > 0) outstanding -= p;          // repayment: O/S decreases
+    closingOS.push(Math.max(0, outstanding));
+  });
+
+  // Reset for pass 2
+  outstanding = 0;
 
   return sorted.map((cf, i) => {
     const d         = new Date(cf.date);
@@ -1835,33 +1865,33 @@ function computeRows(ins) {
     const interest  = cf.interest  || 0;
     const isInv     = principal < 0;
 
-    // Outstanding BEFORE this payment
-    if (isInv) outstanding += Math.abs(principal); // investment adds to O/S
-    const osBefore = outstanding;
+    // O/S at START of this period = closing O/S of previous period
+    // This is what interest is charged on
+    const osBefore = i === 0 ? 0 : closingOS[i - 1];
 
-    // Days in period (Actual/365 — matches Excel)
+    // Days since previous cashflow (Actual/365)
     const days = prevDate && !isInv ? Math.round((d - prevDate) / 86400000) : 0;
 
-    // Gross interest verification: O/S × coupon × days/365
-    // Use stored interest value (from user/auto-gen), not recomputed — preserves exact Excel figures
+    // TDS applies ONLY to interest, NOT to principal or sale proceeds
     const tds    = interest > 0 ? interest * tdr : 0;
     const netInt = interest - tds;
-    const cashflow     = principal + interest;
-    const cfAfterTds   = principal + netInt;
+    const cashflow   = principal + interest;
+    const cfAfterTds = principal + netInt;   // principal passes through without TDS
     cumCF += cfAfterTds;
 
-    // Per-unit
+    // Update running O/S
+    if (isInv) outstanding += Math.abs(principal);
+    else if (principal > 0) outstanding -= principal;
+
+    // Per-unit and per-₹100 (interest only for TDS-sensitive display)
     const intPerUnit = u > 0 ? interest / u : 0;
-    const pPerUnit   = u > 0 ? Math.abs(principal) / u : 0;
+    const pPerUnit   = u > 0 ? (principal !== 0 ? Math.abs(principal) / u : 0) : 0;
     const cfPerUnit  = u > 0 ? cfAfterTds / u : 0;
-    // Per ₹100 face value
-    const intPer100  = totalFace > 0 ? (interest / totalFace) * 100 : 0;
+    const intPer100  = osBefore > 0 ? (interest / osBefore) * 100 : 0;
     const pPer100    = totalFace > 0 ? (Math.abs(principal) / totalFace) * 100 : 0;
     const netPer100  = totalFace > 0 ? (cfAfterTds / totalFace) * 100 : 0;
 
     if (!isInv) prevDate = d;
-    // Update O/S after principal repayment
-    if (!isInv && principal > 0) outstanding -= principal;
 
     return {
       date: d, dateStr: cf.date,
@@ -2136,6 +2166,8 @@ function openAddModal(editId) {
       pendingISINs = [...(ins.isins||[])];
       document.getElementById('f-purchase-price').value = ins.purchasePrice || '';
       document.getElementById('f-purchase-date').value  = ins.purchaseDate  || '';
+      if (document.getElementById('f-isin-start-date'))
+        document.getElementById('f-isin-start-date').value = ins.isinStartDate || ins.purchaseDate || '';
       document.getElementById('f-accrued-paid').value   = ins.accruedPaid   || 0;
       ins.cashflows.forEach(cf => addCashflowRow(cf));
       calcDirtyPrice();
@@ -2660,7 +2692,8 @@ function saveInstrument() {
   };
 
   const purchasePrice = parseFloat(document.getElementById('f-purchase-price').value) || 0;
-  const purchaseDate  = document.getElementById('f-purchase-date').value || '';
+  const purchaseDate    = document.getElementById('f-purchase-date').value || '';
+  const isinStartDate   = document.getElementById('f-isin-start-date')?.value || purchaseDate;
   const accruedPaid   = parseFloat(document.getElementById('f-accrued-paid').value) || 0;
   // Auto-calculate XIRR from cashflows (Newton-Raphson)
   let computedXirr = xirr; // use manual entry as fallback
@@ -5141,27 +5174,41 @@ function switchModalTab(idx) {
 // ── SELL UNITS ──
 let sellInstrumentId = null;
 
+// Flag to know if user has manually overridden sale price
+var sellPriceManual = false;
+function onSellPriceManual() { sellPriceManual = true; calcSellProceeds(); }
+
 function openSellModal(insId) {
   const ins = instruments.find(i => String(i.id) === String(insId));
   if (!ins) return;
   sellInstrumentId = String(insId);
+  sellPriceManual  = false;
   document.getElementById('sell-modal-title').textContent = 'Sell — ' + ins.name;
-  document.getElementById('sell-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('sell-date').value  = new Date().toISOString().slice(0,10);
   document.getElementById('sell-units').value = '';
-  document.getElementById('sell-units').max = ins.units || 1;
-  document.getElementById('sell-price').value = ins.purchasePrice || '';
-  document.getElementById('sell-accrued').value = '0';
+  document.getElementById('sell-units').max   = ins.units || 1;
+  document.getElementById('sell-xirr').value  = ins.xirr ? (ins.xirr * 100).toFixed(4) : '';
+  document.getElementById('sell-price').value = '';
   document.getElementById('sell-notes').value = '';
   document.getElementById('sell-result').style.display = 'none';
 
-  const invested = ins.cashflows.filter(cf => (cf.principal||0) < 0).reduce((a,cf) => a + Math.abs(cf.principal||0), 0);
-  const costPerUnit = invested > 0 ? invested / (ins.units||1) : ins.purchasePrice || ins.faceValue || 0;
+  // Cost basis = purchase price × units (or total invested from cashflows)
+  const invested   = ins.cashflows.filter(cf => (cf.principal||0) < 0).reduce((a,cf) => a + Math.abs(cf.principal||0), 0);
+  const costPerUnit = invested > 0 ? invested / (ins.units||1) : (ins.purchasePrice || ins.faceValue || 0);
+
+  // Past receipts: interest and principal already received (post-TDS)
+  const today = new Date().toISOString().slice(0,10);
+  const pastRows = computeRows(ins).filter(r => r.dateStr <= today && !r.isInv);
+  const pastIntNetReceived  = pastRows.reduce((a,r) => a + r.netInt, 0);
+  const pastPrincipalReceived = pastRows.reduce((a,r) => a + Math.max(0, r.principal), 0);
 
   document.getElementById('sell-modal-info').innerHTML =
-    '<div class="sell-info-item"><div class="si-label">Instrument</div><div class="si-value" style="font-size:12px;">' + ins.name + '</div></div>'
-    + '<div class="sell-info-item"><div class="si-label">Units Held</div><div class="si-value" style="color:var(--accent2);">' + (ins.units||1) + '</div></div>'
-    + '<div class="sell-info-item"><div class="si-label">Face Value</div><div class="si-value">' + fmtCcy(ins.faceValue||1000) + '/unit</div></div>'
-    + '<div class="sell-info-item"><div class="si-label">Cost / Unit</div><div class="si-value" style="color:var(--muted);">' + fmtCcy(costPerUnit) + '</div></div>';
+    '<div class="sell-info-item"><div class="si-label">Units Held</div><div class="si-value" style="color:var(--accent2);">' + (ins.units||1) + '</div></div>'
+    + '<div class="sell-info-item"><div class="si-label">Cost / Unit</div><div class="si-value" style="color:var(--red);">' + fmtCcy(costPerUnit) + '</div></div>'
+    + '<div class="sell-info-item"><div class="si-label">ISIN</div><div class="si-value" style="font-size:10px;">' + (ins.isins||[]).join(', ')||'—' + '</div></div>'
+    + '<div class="sell-info-item"><div class="si-label">Past Int (Net)</div><div class="si-value" style="color:var(--green);">' + fmtCcy(pastIntNetReceived) + '</div></div>'
+    + '<div class="sell-info-item"><div class="si-label">Past Principal</div><div class="si-value" style="color:var(--green);">' + fmtCcy(pastPrincipalReceived) + '</div></div>'
+    + '<div class="sell-info-item"><div class="si-label">Coupon</div><div class="si-value" style="color:var(--accent);">' + (ins.nominal?(ins.nominal*100).toFixed(2)+'%':'—') + '</div></div>';
 
   document.getElementById('sell-modal').classList.add('open');
 }
@@ -5169,25 +5216,110 @@ function openSellModal(insId) {
 function calcSellProceeds() {
   const ins = sellInstrumentId ? instruments.find(i => String(i.id) === String(sellInstrumentId)) : null;
   if (!ins) return;
-  const units    = parseInt(document.getElementById('sell-units').value)  || 0;
-  const price    = parseFloat(document.getElementById('sell-price').value) || 0;
-  const accrued  = parseFloat(document.getElementById('sell-accrued').value) || 0;
-  if (!units || !price) { document.getElementById('sell-result').style.display = 'none'; return; }
 
-  const proceeds  = units * price + accrued;
-  const invested  = ins.cashflows.filter(cf => (cf.principal||0) < 0).reduce((a,cf) => a + Math.abs(cf.principal||0), 0);
-  const costBasis = invested > 0 ? (invested / (ins.units||1)) * units : (ins.purchasePrice||ins.faceValue||0) * units;
-  const pnl       = proceeds - costBasis;
-  const pnlPct    = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+  const sellDate = document.getElementById('sell-date').value;
+  const units    = parseInt(document.getElementById('sell-units').value) || 0;
+  const xirrPct  = parseFloat(document.getElementById('sell-xirr').value) || 0;
+  if (!sellDate || !units) { document.getElementById('sell-result').style.display = 'none'; return; }
+
+  const fv = ins.faceValue || 1000;
+  const tdr= ins.tdsRate   || 0.10;
+  const u  = ins.units     || 1;
+
+  // Outstanding principal at sell date
+  let osAtSell = u * fv;
+  ins.cashflows.filter(cf => cf.date <= sellDate && (cf.principal||0) > 0).forEach(cf => { osAtSell -= (cf.principal||0); });
+  osAtSell = Math.max(0, osAtSell);
+  const osPerUnit = osAtSell / u;
+
+  // Accrued interest at sell date (Excel Actual/365 methodology)
+  const couponRate = ins.nominal || 0;
+  const allCoupons = ins.cashflows.filter(cf => (cf.interest||0) > 0).sort((a,b)=>a.date.localeCompare(b.date));
+  const pastCoupons= allCoupons.filter(cf => cf.date <= sellDate);
+  const nextCoupon = allCoupons.find(cf => cf.date > sellDate);
+  let accruedPerUnit = 0, accruedDays = 0;
+  if (nextCoupon && couponRate > 0) {
+    const refDate   = pastCoupons.length > 0 ? new Date(pastCoupons[pastCoupons.length-1].date) : (ins.purchaseDate ? new Date(ins.purchaseDate) : null);
+    if (refDate) {
+      const sd = new Date(sellDate);
+      accruedDays    = Math.round((sd - refDate) / 86400000);
+      accruedPerUnit = accruedDays > 0 ? osPerUnit * couponRate * accruedDays / 365 : 0;
+    }
+  }
+
+  // Sale price per unit: either auto-calc from XIRR (DCF) or manual
+  let salePricePerUnit = 0;
+  const futureCFs = ins.cashflows.filter(cf => cf.date > sellDate && ((cf.principal||0)>0||(cf.interest||0)>0));
+  if (!sellPriceManual && xirrPct > 0 && futureCFs.length > 0) {
+    // DCF at the given yield — clean price
+    const r  = xirrPct / 100;
+    const sd = new Date(sellDate);
+    let pv = 0;
+    futureCFs.forEach(cf => {
+      const yrs = (new Date(cf.date) - sd) / (365.25 * 86400000);
+      if (yrs > 0) pv += ((cf.principal||0)+(cf.interest||0)) / Math.pow(1+r, yrs);
+    });
+    salePricePerUnit = pv / u;  // clean price per unit (DCF)
+    document.getElementById('sell-price').value = salePricePerUnit.toFixed(2);
+  } else {
+    salePricePerUnit = parseFloat(document.getElementById('sell-price').value) || 0;
+  }
+
+  if (!salePricePerUnit) { document.getElementById('sell-result').style.display = 'none'; return; }
+
+  // Dirty price = clean price + accrued interest (per unit)
+  const dirtyPerUnit   = salePricePerUnit + accruedPerUnit;
+  const totalProceeds  = dirtyPerUnit * units;
+  const principalPart  = osPerUnit * units;  // O/S principal recovered
+  const accruedTotal   = accruedPerUnit * units;
+
+  // Cost basis: original investment for these units (post past principal receipts)
+  const invested   = ins.cashflows.filter(cf=>(cf.principal||0)<0).reduce((a,cf)=>a+Math.abs(cf.principal||0),0);
+  const costPerUnit= invested > 0 ? invested / u : (ins.purchasePrice || fv);
+  const costBasis  = costPerUnit * units;
+
+  // Past receipts for these units
+  const today = new Date().toISOString().slice(0,10);
+  const pastRows = computeRows(ins).filter(r => r.dateStr <= sellDate && !r.isInv);
+  const pastIntNet = pastRows.reduce((a,r) => a + r.netInt * (units/u), 0);
+  const pastPrin   = pastRows.reduce((a,r) => a + Math.max(0,r.principal) * (units/u), 0);
+
+  // TDS on accrued interest only (not on principal portion of sale)
+  const tdsonAccrued = accruedTotal * tdr;
+  const netAccrued   = accruedTotal - tdsonAccrued;
+  const netProceeds  = principalPart + netAccrued;  // principal passes through, accrued is net of TDS
+
+  // Realised P&L = Total received (past cashflows + net sale proceeds) - cost basis
+  const totalReceived = pastIntNet + pastPrin + netProceeds;
+  const pnl    = totalReceived - costBasis;
+  const pnlPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+
+  // Gain on sale (separate from running income)
+  // Sale gain = net sale proceeds - (cost basis - past principal received)
+  const remainingCost = costBasis - pastPrin;
+  const saleGain      = netProceeds - remainingCost;
+  const saleGainPct   = remainingCost > 0 ? (saleGain / remainingCost) * 100 : 0;
 
   const grid = document.getElementById('sell-summary-grid');
   grid.innerHTML =
-    sellMetric('Units × Price', fmtCcy(units * price), 'var(--text)')
-    + sellMetric('Accrued Int', fmtCcy(accrued), 'var(--accent2)')
-    + sellMetric('Total Proceeds', fmtCcy(proceeds), 'var(--green)')
+    sellMetric('Clean Price/Unit', fmtCcy(salePricePerUnit), 'var(--text)')
+    + sellMetric('Accrued Int/Unit', fmtCcy(accruedPerUnit), 'var(--accent2)')
+    + sellMetric('Dirty Price/Unit', fmtCcy(dirtyPerUnit), 'var(--yellow)')
+    + sellMetric('Total Proceeds', fmtCcy(totalProceeds), 'var(--text)')
+    + sellMetric('TDS on Accrued', fmtCcy(tdsonAccrued), 'var(--red)')
+    + sellMetric('Net Proceeds', fmtCcy(netProceeds), 'var(--green)')
     + sellMetric('Cost Basis', fmtCcy(costBasis), 'var(--muted)')
-    + sellMetric('Realised P&L', (pnl >= 0 ? '+' : '') + fmtCcy(pnl), pnl >= 0 ? 'var(--green)' : 'var(--red)')
-    + sellMetric('Return %', (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%', pnlPct >= 0 ? 'var(--green)' : 'var(--red)');
+    + sellMetric('Past Int Recd (Net)', fmtCcy(pastIntNet), 'var(--green)')
+    + sellMetric('Past Principal Recd', fmtCcy(pastPrin), 'var(--green)')
+    + sellMetric('Gain on Sale', (saleGain>=0?'+':'')+fmtCcy(saleGain), saleGain>=0?'var(--green)':'var(--red)')
+    + sellMetric('Overall P&L', (pnl>=0?'+':'')+fmtCcy(pnl), pnl>=0?'var(--green)':'var(--red)')
+    + sellMetric('Return %', (pnlPct>=0?'+':'')+pnlPct.toFixed(2)+'%', pnlPct>=0?'var(--green)':'var(--red)');
+
+  const noteEl = document.getElementById('sell-calc-note');
+  if (noteEl) noteEl.textContent =
+    'Accrued: ' + accruedDays + ' days × ' + (couponRate*100).toFixed(2) + '% coupon on ₹' + osPerUnit.toLocaleString('en-IN',{maximumFractionDigits:0}) + '/unit O/S'
+    + ' · TDS @' + (tdr*100).toFixed(0) + '% on accrued interest only (not on principal/proceeds)';
+
   document.getElementById('sell-result').style.display = 'block';
 }
 
@@ -5201,33 +5333,67 @@ function sellMetric(label, value, color) {
 function confirmSell() {
   const ins = sellInstrumentId ? instruments.find(i => String(i.id) === String(sellInstrumentId)) : null;
   if (!ins) return;
-  const date    = document.getElementById('sell-date').value;
-  const units   = parseInt(document.getElementById('sell-price')? document.getElementById('sell-units').value : 0) || 0;
-  const price   = parseFloat(document.getElementById('sell-price').value) || 0;
-  const accrued = parseFloat(document.getElementById('sell-accrued').value) || 0;
-  const notes   = document.getElementById('sell-notes').value || '';
-  if (!date || !units || !price) { toast('Please fill in date, units, and price', 'warn'); return; }
-  if (units > (ins.units||1)) { toast('Cannot sell more units than held (' + ins.units + ')', 'warn'); return; }
+  const date  = document.getElementById('sell-date').value;
+  const units = parseInt(document.getElementById('sell-units').value) || 0;
+  const price = parseFloat(document.getElementById('sell-price').value) || 0;
+  const notes = document.getElementById('sell-notes').value || '';
+  if (!date || !units || !price) { toast('Please enter Sale Date, Units, and Price/XIRR', 'warn'); return; }
+  if (units > (ins.units||1)) { toast('Cannot sell more than ' + (ins.units||1) + ' units held', 'warn'); return; }
 
-  const proceeds = units * price + accrued;
+  // Accrued interest at sell date
+  const fv = ins.faceValue || 1000;
+  const u  = ins.units || 1;
+  const couponRate = ins.nominal || 0;
+  const tdr = ins.tdsRate || 0.10;
 
-  // Add the sale as positive principal cashflow (proceeds)
-  ins.cashflows.push({
-    date,
-    principal: proceeds,
-    interest: 0,
-    recordDate: '',
-    notes: 'SALE: ' + units + ' unit' + (units>1?'s':'') + ' @ ₹' + price.toLocaleString('en-IN') + (notes ? ' — ' + notes : '')
-  });
+  let osAtSell = u * fv;
+  ins.cashflows.filter(cf => cf.date <= date && (cf.principal||0) > 0).forEach(cf => { osAtSell -= (cf.principal||0); });
+  osAtSell = Math.max(0, osAtSell);
+  const osPerUnit = osAtSell / u;
+
+  const allCoupons  = ins.cashflows.filter(cf=>(cf.interest||0)>0).sort((a,b)=>a.date.localeCompare(b.date));
+  const pastCoupons = allCoupons.filter(cf=>cf.date<=date);
+  const nextCoupon  = allCoupons.find(cf=>cf.date>date);
+  let accruedPerUnit = 0;
+  if (nextCoupon && couponRate > 0) {
+    const refDate = pastCoupons.length > 0 ? new Date(pastCoupons[pastCoupons.length-1].date) : (ins.purchaseDate ? new Date(ins.purchaseDate) : null);
+    if (refDate) {
+      const days = Math.round((new Date(date) - refDate) / 86400000);
+      if (days > 0) accruedPerUnit = osPerUnit * couponRate * days / 365;
+    }
+  }
+
+  const dirtyPerUnit  = price + accruedPerUnit;
+  const accruedTotal  = accruedPerUnit * units;
+  const principalPart = osPerUnit * units;
+
+  // Record principal recovery as principal cashflow (no TDS)
+  // Record accrued interest as interest cashflow (TDS applies)
+  if (principalPart > 0) {
+    ins.cashflows.push({ date, principal: principalPart, interest: 0, recordDate: '', notes: 'SALE-PRINCIPAL: ' + units + ' unit(s) @ ₹' + price.toFixed(2) + '/unit' + (notes?' — '+notes:'') });
+  }
+  if (accruedTotal > 0) {
+    ins.cashflows.push({ date, principal: 0, interest: accruedTotal, recordDate: '', notes: 'SALE-ACCRUED-INT' + (notes?' — '+notes:'') });
+  }
   ins.cashflows.sort((a,b) => a.date.localeCompare(b.date));
-
-  // Reduce units
   ins.units = Math.max(0, (ins.units||1) - units);
+
+  // Record in saleHistory for gain-on-sale tracking
+  if (!ins.saleHistory) ins.saleHistory = [];
+  const invested = ins.cashflows.filter(cf=>(cf.principal||0)<0).reduce((a,cf)=>a+Math.abs(cf.principal||0),0) + principalPart;
+  const costPerUnit = invested > u ? invested / (u + units) : (ins.purchasePrice || fv);
+  ins.saleHistory.push({
+    date, units, salePricePerUnit: price, accruedPerUnit,
+    dirtyPerUnit, totalProceeds: dirtyPerUnit * units,
+    costBasis: costPerUnit * units,
+    saleGain: principalPart - costPerUnit * units,
+    notes
+  });
 
   closeModal('sell-modal');
   persistInstruments();
   refresh();
-  toast('Sale recorded: ' + fmtCcy(proceeds) + ' proceeds · ' + ins.units + ' units remaining', 'success');
+  toast('Sale recorded · ₹' + principalPart.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' principal + ₹' + accruedTotal.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' accrued interest · ' + ins.units + ' units remaining', 'success');
 }
 
 // ===================== DOWNLOAD / EXPORT =====================
@@ -5603,7 +5769,7 @@ function renderMainDashboard() {
   ];
   sections.forEach(function(sec) {
     var items = portfolioData[sec.key] || [];
-    if (!items.length) return;
+    // Always show rows even with 0 items (greyed out) so user knows sections exist
     var inv = items.reduce(function(a,i){return a+(i.invested||0);},0);
     var val = items.reduce(function(a,i){return a+(i.currentValue||i.invested||0);},0);
     var ret = inv > 0 ? (val-inv)/inv : 0;
@@ -5616,6 +5782,56 @@ function renderMainDashboard() {
       + '</tr>';
   });
   html += '</tbody></table></div></div>';
+
+  // ── Instrument Transactions (buy/sell date-wise) ──
+  html += '<div class="bond-card" style="margin-bottom:16px;">';
+  html += '<div class="bond-card-header" style="display:flex;justify-content:space-between;align-items:center;">';
+  html += '<span>📋 Instrument Transactions — Date-wise</span></div>';
+  html += '<div class="bond-card-body" style="padding:0;">';
+
+  var txnRows = [];
+  instruments.forEach(function(ins) {
+    // Buy transactions
+    ins.cashflows.filter(function(cf){return (cf.principal||0)<0;}).forEach(function(cf) {
+      txnRows.push({ date: cf.date, type: 'BUY', name: ins.name, units: ins.units||1,
+        amount: Math.abs(cf.principal||0), isin: (ins.isins||[])[0]||'—', color: 'var(--red)' });
+    });
+    // Sale transactions from saleHistory
+    (ins.saleHistory||[]).forEach(function(s) {
+      txnRows.push({ date: s.date, type: 'SELL', name: ins.name, units: s.units,
+        amount: s.totalProceeds||0, gain: s.saleGain||0, isin: (ins.isins||[])[0]||'—', color: 'var(--green)' });
+    });
+  });
+  txnRows.sort(function(a,b){return b.date.localeCompare(a.date);}); // newest first
+
+  if (!txnRows.length) {
+    html += '<div style="padding:16px;color:var(--muted);font-size:11px;">No transactions yet.</div>';
+  } else {
+    html += '<table style="width:100%;font-size:11px;font-family:var(--font-mono);">';
+    html += '<thead><tr style="background:var(--surface2);">'
+      + '<th style="text-align:left;padding:7px 12px;color:var(--muted);font-size:8px;text-transform:uppercase;">Date</th>'
+      + '<th style="text-align:left;padding:7px 12px;color:var(--muted);font-size:8px;text-transform:uppercase;">Type</th>'
+      + '<th style="text-align:left;padding:7px 12px;color:var(--muted);font-size:8px;text-transform:uppercase;">Instrument</th>'
+      + '<th style="text-align:left;padding:7px 12px;color:var(--muted);font-size:8px;text-transform:uppercase;">ISIN</th>'
+      + '<th style="text-align:right;padding:7px 12px;color:var(--muted);font-size:8px;text-transform:uppercase;">Units</th>'
+      + '<th style="text-align:right;padding:7px 12px;color:var(--muted);font-size:8px;text-transform:uppercase;">Amount</th>'
+      + '<th style="text-align:right;padding:7px 12px;color:var(--muted);font-size:8px;text-transform:uppercase;">Gain on Sale</th>'
+      + '</tr></thead><tbody>';
+    txnRows.slice(0,20).forEach(function(t) {
+      html += '<tr style="border-bottom:1px solid rgba(34,40,64,0.4);">'
+        + '<td style="padding:7px 12px;">' + fmtDate(new Date(t.date)) + '</td>'
+        + '<td style="padding:7px 12px;"><span style="color:'+t.color+';font-weight:600;font-size:10px;">' + t.type + '</span></td>'
+        + '<td style="padding:7px 12px;">' + t.name + '</td>'
+        + '<td style="padding:7px 12px;font-size:9px;color:var(--muted);">' + t.isin + '</td>'
+        + '<td style="padding:7px 12px;text-align:right;">' + t.units + '</td>'
+        + '<td style="padding:7px 12px;text-align:right;color:'+t.color+';">₹' + (t.amount||0).toLocaleString('en-IN',{maximumFractionDigits:0}) + '</td>'
+        + '<td style="padding:7px 12px;text-align:right;color:' + ((t.gain||0)>=0?'var(--green)':'var(--red)') + ';">'
+        + (t.type==='SELL' ? ((t.gain||0)>=0?'+':'') + '₹'+(Math.abs(t.gain||0)).toLocaleString('en-IN',{maximumFractionDigits:0}) : '—')
+        + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div></div>';
 
   return html;
 }
@@ -5859,33 +6075,68 @@ function renderPortfolioSection(section, subTab) {
     nps:'NPS', ppf:'PPF / PF', gold:'Gold / SGBs', cp:'Commercial Papers',
     insurance:'Insurance / ULIP', realestate:'Real Estate' };
   var items = portfolioData[section] || [];
+  var label = PORT_SEC[section] || section;
+
   if (subTab === 'dashboard') {
     var inv = items.reduce(function(a,i){return a+(i.invested||0);},0);
     var val = items.reduce(function(a,i){return a+(i.currentValue||i.invested||0);},0);
     var inc = items.reduce(function(a,i){return a+(i.incomeReceived||0);},0);
+    var ret = inv > 0 ? ((val-inv)/inv)*100 : 0;
+
     var html = '<div class="sec-kpi-grid">';
-    html += kpiCard(items.length+' Items', PORT_SEC[section]||section, 'in this category', 'kpi-blue', '→', function(){switchSubTab('instruments');});
+    html += kpiCard(items.length + ' Items', label, 'click to view instruments', 'kpi-blue', '→', function(){switchSubTab('instruments');});
     html += kpiCard('Invested', fmtPort(inv), 'total cost basis', 'kpi-gold', '', function(){});
-    html += kpiCard('Current Value', fmtPort(val), 'mark-to-market', val>=inv?'kpi-green':'kpi-red', '', function(){});
-    html += kpiCard('Gain / (Loss)', fmtPort(val-inv), (inv>0?(((val-inv)/inv)*100).toFixed(2)+'% return':'—'), (val>=inv?'kpi-green':'kpi-red'), '', function(){});
-    if (inc > 0) html += kpiCard('Income Received', fmtPort(inc), 'dividends / interest', 'kpi-purple', '', function(){});
+    html += kpiCard('Current Value', fmtPort(val), 'mark-to-market estimate', val>=inv?'kpi-green':'kpi-red', '', function(){});
+    html += kpiCard('Gain / (Loss)', fmtPort(val-inv), ret.toFixed(2)+'% return', val>=inv?'kpi-green':'kpi-red', '', function(){});
+    if (inc > 0) html += kpiCard('Income Received', fmtPort(inc), 'dividends / coupons', 'kpi-purple', '', function(){});
     html += '</div>';
-    if (!items.length) html += '<div class="empty-state"><div class="icon">📁</div><p>No entries in '+PORT_SEC[section]+'.<br><button class="btn btn-primary" style="margin-top:12px;" onclick="openPortModal(\''+section+'\')">+ Add Entry</button></p></div>';
-    else {
-      html += '<div style="margin-top:8px;"><button class="btn btn-primary" onclick="openPortModal(\''+section+'\')">+ Add '+PORT_SEC[section]+'</button></div>';
+
+    if (!items.length) {
+      html += '<div class="empty-state"><div class="icon">📁</div><p>No entries in ' + label + ' yet.</p>'
+        + '<button class="btn btn-primary" style="margin-top:12px;" onclick="openPortModal(\'' + section + '\')">+ Add ' + label + '</button></div>';
+    } else {
+      html += '<div style="margin-bottom:12px;"><button class="btn btn-primary" onclick="openPortModal(\'' + section + '\')">+ Add ' + label + '</button></div>';
+      // Quick summary table
+      html += '<div class="bond-card"><div class="bond-card-header">' + label + ' — Summary</div>';
+      html += '<div class="bond-card-body" style="padding:0;"><table style="width:100%;font-size:11px;font-family:var(--font-mono);">';
+      html += '<thead><tr style="background:var(--surface2);">'
+        + '<th style="text-align:left;padding:7px 12px;color:var(--muted);font-size:8px;text-transform:uppercase;">Name</th>'
+        + '<th style="text-align:right;padding:7px 12px;color:var(--muted);font-size:8px;">Invested</th>'
+        + '<th style="text-align:right;padding:7px 12px;color:var(--muted);font-size:8px;">Current</th>'
+        + '<th style="text-align:right;padding:7px 12px;color:var(--muted);font-size:8px;">Gain/(Loss)</th>'
+        + '<th style="text-align:right;padding:7px 12px;color:var(--muted);font-size:8px;">Return %</th>'
+        + '</tr></thead><tbody>';
+      items.forEach(function(item, idx) {
+        var iinv = item.invested||0;
+        var ival = item.currentValue||iinv;
+        var igain= ival-iinv;
+        var iret = iinv>0?(igain/iinv)*100:0;
+        html += '<tr style="border-bottom:1px solid rgba(34,40,64,0.4);cursor:pointer;" onclick="switchSubTab(\'instruments\')">'
+          + '<td style="padding:7px 12px;">' + (item.name||'—') + '</td>'
+          + '<td style="padding:7px 12px;text-align:right;color:var(--accent);">₹'+iinv.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
+          + '<td style="padding:7px 12px;text-align:right;color:'+(ival>=iinv?'var(--green)':'var(--red)')+';">₹'+ival.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
+          + '<td style="padding:7px 12px;text-align:right;color:'+(igain>=0?'var(--green)':'var(--red)') + ';">'+(igain>=0?'+':'')+'₹'+Math.abs(igain).toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
+          + '<td style="padding:7px 12px;text-align:right;color:'+(iret>=0?'var(--green)':'var(--red)')+';">'+(iret>=0?'+':'')+iret.toFixed(2)+'%</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div></div>';
     }
     return html;
   }
+
+  if (subTab === 'summary') {
+    return renderPortfolioSection(section, 'dashboard');
+  }
+
   if (subTab === 'instruments') {
-    var html2 = '<div style="margin-bottom:12px;"><button class="btn btn-primary" onclick="openPortModal(\''+section+'\')">+ Add '+PORT_SEC[section]+'</button></div>';
+    var html2 = '<div style="margin-bottom:12px;"><button class="btn btn-primary" onclick="openPortModal(\'' + section + '\')">+ Add ' + label + '</button></div>';
     if (!items.length) return html2 + '<div class="empty-state"><div class="icon">📁</div><p>No entries yet.</p></div>';
-    var secObj = PORT_SECTIONS.find(function(s){return s.key===section;}) || {key:section,label:PORT_SEC[section]||section};
-    items.forEach(function(item,idx) {
-      html2 += renderPortItem(secObj, item, idx);
-    });
+    var secObj = PORT_SECTIONS.find(function(s){return s.key===section;}) || {key:section,label:label};
+    items.forEach(function(item,idx) { html2 += renderPortItem(secObj, item, idx); });
     return html2;
   }
-  return '<div style="color:var(--muted);padding:20px;">Select a view from the tabs above.</div>';
+
+  return '<div style="color:var(--muted);padding:20px;font-size:12px;">Select a view from the tabs above.</div>';
 }
 
 function kpiCard(label, value, sub, cls, arrow, onclick_fn) {
