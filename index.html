@@ -101,6 +101,96 @@
   .profile-btn .pavatar{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0c0f17;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
 
   /* ── MAIN LAYOUT ── */
+  /* ── APP SHELL: sidebar + content ── */
+  .app-shell{display:flex;height:100vh;overflow:hidden;}
+  .sidebar{
+    width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;transition:width 0.2s ease;overflow:hidden;
+    position:relative;z-index:10;
+  }
+  .sidebar.collapsed{width:52px;}
+  .sidebar-header{padding:16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .sidebar-logo{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;}
+  .sidebar-toggle{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px;flex-shrink:0;transition:transform 0.2s;}
+  .sidebar.collapsed .sidebar-toggle{transform:rotate(180deg);}
+  .sidebar-nav{flex:1;overflow-y:auto;padding:8px 0;}
+  .sidebar-section-label{font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);padding:10px 14px 4px;white-space:nowrap;overflow:hidden;}
+  .sidebar.collapsed .sidebar-section-label{opacity:0;}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;
+    transition:all var(--transition);border-left:3px solid transparent;
+    white-space:nowrap;overflow:hidden;font-size:12px;color:var(--text2);
+    font-family:var(--font-mono);
+  }
+  .nav-item:hover{background:var(--surface2);color:var(--text);}
+  .nav-item.active{background:var(--surface2);border-left-color:var(--accent2);color:var(--text);}
+  .nav-item .ni-icon{font-size:15px;flex-shrink:0;width:20px;text-align:center;}
+  .nav-item .ni-label{flex:1;overflow:hidden;text-overflow:ellipsis;}
+  .nav-item .ni-badge{background:var(--accent2);color:#0c0f17;font-size:8px;padding:1px 5px;border-radius:10px;flex-shrink:0;}
+  .sidebar.collapsed .ni-label,.sidebar.collapsed .ni-badge,.sidebar.collapsed .sidebar-section-label{display:none;}
+  .sidebar-footer{padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;}
+
+  /* Sub-nav (asset class tabs) */
+  .subnav{background:var(--surface2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;overflow-x:auto;flex-shrink:0;}
+  .subnav-tab{padding:9px 16px;font-family:var(--font-mono);font-size:10px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all var(--transition);background:none;border-top:none;border-left:none;border-right:none;}
+  .subnav-tab:hover{color:var(--text2);}
+  .subnav-tab.active{color:var(--accent2);border-bottom-color:var(--accent2);}
+
+  /* Main content */
+  .main-content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  .content-header{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;}
+  .content-title{font-size:16px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:10px;}
+  .content-subtitle{font-size:10px;color:var(--muted);font-family:var(--font-mono);margin-top:2px;}
+  .content-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+  .content-body{flex:1;overflow-y:auto;padding:20px 24px;}
+  @media(max-width:768px){
+    .sidebar{position:fixed;height:100%;z-index:100;}
+    .sidebar:not(.collapsed){box-shadow:4px 0 20px rgba(0,0,0,0.3);}
+    .content-body{padding:14px 14px;}
+    .content-header{padding:10px 14px;}
+  }
+
+  /* ── Section Dashboard cards ── */
+  .sec-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px;}
+  .sec-kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden;cursor:pointer;transition:all var(--transition);}
+  .sec-kpi:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.2);}
+  .sec-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+  .sec-kpi.kpi-green::before{background:var(--green);}
+  .sec-kpi.kpi-blue::before{background:var(--accent2);}
+  .sec-kpi.kpi-gold::before{background:var(--accent);}
+  .sec-kpi.kpi-red::before{background:var(--red);}
+  .sec-kpi.kpi-purple::before{background:var(--accent3);}
+  .sec-kpi .kpi-label{font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-bottom:6px;}
+  .sec-kpi .kpi-value{font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text);}
+  .sec-kpi .kpi-sub{font-size:9px;color:var(--muted);margin-top:3px;font-family:var(--font-mono);}
+  .sec-kpi .kpi-arrow{position:absolute;bottom:10px;right:12px;font-size:10px;color:var(--muted);}
+
+  /* Bond detail card (Excel Sheet 1 layout) */
+  .bond-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  @media(max-width:900px){.bond-detail-grid{grid-template-columns:1fr;}}
+  .bond-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+  .bond-card-header{background:var(--surface2);padding:10px 16px;font-size:10px;font-family:var(--font-mono);font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid var(--border);}
+  .bond-card-body{padding:12px 16px;}
+  .bond-field{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(34,40,64,0.4);}
+  .bond-field:last-child{border-bottom:none;}
+  .bond-field .bf-label{font-size:10px;color:var(--muted);font-family:var(--font-mono);}
+  .bond-field .bf-value{font-size:11px;font-weight:600;color:var(--text);font-family:var(--font-mono);}
+  .bond-field .bf-value.gold{color:var(--accent);}
+  .bond-field .bf-value.blue{color:var(--accent2);}
+  .bond-field .bf-value.green{color:var(--green);}
+  .bond-field .bf-value.red{color:var(--red);}
+
+  /* Excel Sheet 3 style: Purchase / Sale details */
+  .purchase-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:16px;}
+  .purchase-header{background:linear-gradient(135deg,rgba(251,113,133,0.12),rgba(251,113,133,0.04));padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+  .purchase-title{font-size:12px;font-weight:600;color:var(--red);font-family:var(--font-mono);}
+  .purchase-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0;}
+  .purchase-metric{padding:12px 16px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+  .purchase-metric:last-child{border-right:none;}
+  .purchase-metric .pm-label{font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:4px;}
+  .purchase-metric .pm-val{font-size:15px;font-weight:700;font-family:var(--font-mono);}
+  .purchase-metric .pm-sub{font-size:9px;color:var(--muted);font-family:var(--font-mono);margin-top:2px;}
+
   .main{max-width:1400px;margin:0 auto;padding:20px 28px 60px;}
   @media(max-width:768px){.main{padding:14px 14px 40px;}}
 
@@ -483,7 +573,7 @@
   .upload-parsed-preview{font-size:10px;color:var(--muted);max-height:120px;overflow-y:auto;}
 </style>
 </head>
-<body>
+<body style="margin:0;padding:0;height:100vh;overflow:hidden;">
 
 <!-- ── LOGIN OVERLAY ── shown on top of everything until authenticated ── -->
 <div id="login-overlay">
@@ -542,8 +632,174 @@
   </div>
 </div>
 
-<div class="main">
-  <div class="instruments-bar">
+<div class="app-shell">
+
+<!-- ── LEFT SIDEBAR ── -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">⬡ InvestOS</div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Collapse sidebar">◀</button>
+  </div>
+  <div class="sidebar-nav">
+
+    <div class="sidebar-section-label">Overview</div>
+    <div class="nav-item active" id="nav-dashboard" onclick="navTo('dashboard')">
+      <span class="ni-icon">📊</span><span class="ni-label">Dashboard</span>
+    </div>
+
+    <div class="sidebar-section-label">Fixed Income</div>
+    <div class="nav-item" id="nav-bonds" onclick="navTo('bonds')">
+      <span class="ni-icon">📑</span><span class="ni-label">Bonds / NCDs</span>
+      <span class="ni-badge" id="nav-bonds-badge">0</span>
+    </div>
+    <div class="nav-item" id="nav-fd" onclick="navTo('fd')">
+      <span class="ni-icon">🏦</span><span class="ni-label">Fixed Deposits</span>
+      <span class="ni-badge" id="nav-fd-badge">0</span>
+    </div>
+    <div class="nav-item" id="nav-rd" onclick="navTo('rd')">
+      <span class="ni-icon">📅</span><span class="ni-label">Recurring Deposits</span>
+      <span class="ni-badge" id="nav-rd-badge">0</span>
+    </div>
+    <div class="nav-item" id="nav-cp" onclick="navTo('cp')">
+      <span class="ni-icon">📄</span><span class="ni-label">Commercial Papers</span>
+    </div>
+
+    <div class="sidebar-section-label">Equity & Growth</div>
+    <div class="nav-item" id="nav-equity" onclick="navTo('equity')">
+      <span class="ni-icon">📈</span><span class="ni-label">Equity / Stocks</span>
+    </div>
+    <div class="nav-item" id="nav-mf" onclick="navTo('mf')">
+      <span class="ni-icon">🧺</span><span class="ni-label">Mutual Funds</span>
+    </div>
+
+    <div class="sidebar-section-label">Retirement & Tax</div>
+    <div class="nav-item" id="nav-nps" onclick="navTo('nps')">
+      <span class="ni-icon">🏛️</span><span class="ni-label">NPS</span>
+    </div>
+    <div class="nav-item" id="nav-ppf" onclick="navTo('ppf')">
+      <span class="ni-icon">🔒</span><span class="ni-label">PPF / PF</span>
+    </div>
+
+    <div class="sidebar-section-label">Alternatives</div>
+    <div class="nav-item" id="nav-gold" onclick="navTo('gold')">
+      <span class="ni-icon">🥇</span><span class="ni-label">Gold / SGBs</span>
+    </div>
+    <div class="nav-item" id="nav-insurance" onclick="navTo('insurance')">
+      <span class="ni-icon">🛡️</span><span class="ni-label">Insurance / ULIP</span>
+    </div>
+    <div class="nav-item" id="nav-realestate" onclick="navTo('realestate')">
+      <span class="ni-icon">🏠</span><span class="ni-label">Real Estate</span>
+    </div>
+
+    <div class="sidebar-section-label">Tools</div>
+    <div class="nav-item" id="nav-cashflows" onclick="navTo('cashflows')">
+      <span class="ni-icon">⏰</span><span class="ni-label">Cashflow Calendar</span>
+    </div>
+
+  </div>
+  <div class="sidebar-footer">
+    <div id="sidebar-user-pill"></div>
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT AREA ── -->
+<div class="main-content">
+
+  <!-- Content header (dynamic) -->
+  <div class="content-header" id="content-header">
+    <div>
+      <div class="content-title" id="content-title">📊 Dashboard</div>
+      <div class="content-subtitle" id="content-subtitle">Overall portfolio overview</div>
+    </div>
+    <div class="content-actions" id="content-actions">
+      <button class="add-btn" onclick="openAddModal()">+ Add Bond / NCD</button>
+      <button class="cas-btn" onclick="openCASModal()">📄 Import CAS</button>
+      <button onclick="downloadAllCSV()" style="background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--font-mono);font-size:10px;">⬇ CSV</button>
+      <button onclick="downloadAllExcel()" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);padding:6px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--font-mono);font-size:10px;">⬇ Excel</button>
+      <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">🌙</button>
+      <button class="profile-btn" id="profile-btn" style="display:none" onclick="openProfileModal()">
+        <div class="pavatar" id="profile-avatar-btn">?</div>
+        <span id="profile-name-btn">Profile</span>
+      </button>
+      <button class="signout-btn" id="signout-btn" style="display:none" onclick="doSignOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Sub-nav tabs (per section) -->
+  <div class="subnav" id="subnav" style="display:none;">
+    <button class="subnav-tab active" id="subtab-dashboard" onclick="switchSubTab('dashboard')">Dashboard</button>
+    <button class="subnav-tab" id="subtab-summary" onclick="switchSubTab('summary')">Summary</button>
+    <button class="subnav-tab" id="subtab-instruments" onclick="switchSubTab('instruments')">Instruments</button>
+    <button class="subnav-tab" id="subtab-cashflows" onclick="switchSubTab('cashflows')">Cashflows</button>
+  </div>
+
+  <!-- Main scrollable body -->
+  <div class="content-body" id="content-body">
+    <!-- Reminders panel -->
+    <div class="reminders-panel" id="reminders-panel" style="display:none;">
+      <div class="reminders-header">
+        <div>
+          <div class="reminders-title">🔔 Upcoming Inflow Reminders</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:3px;">Future inflows based on selected period</div>
+        </div>
+        <div class="reminder-controls">
+          <div class="rc"><label>Period</label>
+            <select id="reminder-period" onchange="onPeriodChange()">
+              <option value="7">7 days</option><option value="14">14 days</option>
+              <option value="30" selected>30 days</option><option value="60">60 days</option>
+              <option value="90">90 days</option><option value="180">6 months</option>
+              <option value="365">1 year</option><option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div class="rc" id="custom-days-wrap" style="display:none;">
+            <label>Days</label><input type="number" id="reminder-custom-days" value="45" min="1" style="width:70px;" oninput="renderReminders()">
+          </div>
+          <div class="rc"><label>Urgent if within</label>
+            <select id="reminder-urgency" onchange="renderReminders()">
+              <option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option>
+            </select>
+          </div>
+          <div class="rc"><label>Min Inflow (₹)</label>
+            <input type="number" id="reminder-min" value="0" min="0" style="width:90px;" oninput="renderReminders()">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="openEmailModal()">📧 Summary</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleReminders()">✕ Close</button>
+        </div>
+      </div>
+      <div id="reminders-list"></div>
+    </div>
+
+    <!-- Dynamic page content -->
+    <div id="page-content"></div>
+  </div>
+
+</div><!-- end main-content -->
+</div><!-- end app-shell -->
+
+<!-- Legacy containers (kept for compatibility but hidden) -->
+<div id="table-container" style="display:none;"></div>
+<div id="dashboard-container" class="dashboard"></div>
+<div id="portfolio-container" style="display:none;"></div>
+
+<!-- ── OLD INSTRUMENT TAGS BAR (hidden, kept for compatibility) ── -->
+<div style="display:none;">
+  <div id="instrument-tags"></div>
+  <div id="metrics-section"></div>
+  <div id="hdr-upcoming"></div>
+  <div id="hdr-past-inv"></div>
+  <div id="hdr-not-reinvested"></div>
+  <div id="met-nominal"></div><div id="met-xirr"></div>
+  <div id="met-upcoming"></div><div id="met-past-inv"></div>
+  <div id="met-past-rep"></div><div id="met-not-reinvested"></div>
+  <div id="pc-invested"></div><div id="pc-outstanding"></div>
+  <div id="pc-outstanding-sub"></div><div id="pc-upcoming"></div>
+  <div id="pc-upcoming-sub"></div><div id="pc-upcoming-trend"></div>
+  <div id="pc-xirr"></div><div id="pc-received"></div>
+  <div id="pc-not-reinvested"></div><div id="current-date-display"></div>
+  <div id="playcard-grid"></div>
+</div>
+
+<div style="display:none;"><div class="main"><div class="instruments-bar">
     <div id="instrument-tags"></div>
     <button class="add-btn" onclick="openAddModal()">+ Add Instrument</button>
     <button class="cas-btn" onclick="openCASModal()">📄 Import from CAS PDF</button>
@@ -680,10 +936,7 @@
     <div class="metric-block"><div class="label">Past Days</div><input class="filter-input" type="number" id="days-past" value="30" min="1" oninput="refresh()"></div>
   </div>
 
-  <div id="table-container"></div>
-  <div id="dashboard-container" class="dashboard"></div>
-  <div id="portfolio-container" style="display:none;"></div>
-</div>
+
 
 <!-- ===== ADD INSTRUMENT MODAL ===== -->
 <div class="modal-overlay" id="add-modal">
@@ -3087,6 +3340,10 @@ async function onAuth(user) {
   // Load saved instruments from Supabase
   await loadInstruments(user.id);
   await loadPortfolioFromDB(user.id);
+  // Show the user pill in sidebar
+  var sp = document.getElementById('sidebar-user-pill');
+  if (sp) sp.innerHTML = '<div style="font-size:10px;font-family:var(--font-mono);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+user.email+'</div>';
+  navTo('dashboard');
   // Set current date and refresh
   document.getElementById('current-date-display').textContent = fmtDate(getToday());
   refresh();
@@ -3634,11 +3891,11 @@ function calcPV() {
   const ins = pvInstrumentId ? instruments.find(i => String(i.id) === String(pvInstrumentId)) : null;
   if (!ins) return;
 
-  const discountRate  = (parseFloat(document.getElementById('pv-discount')?.value) || 12) / 100;
-  const valuationDate = document.getElementById('pv-date')?.value || '';
-  const marketPriceEl = parseFloat(document.getElementById('pv-market-price')?.value) || 0;
+  const discountRate    = (parseFloat(document.getElementById('pv-discount')?.value) || 12) / 100;
+  const valuationDate   = document.getElementById('pv-date')?.value || '';
+  const marketPriceEl   = parseFloat(document.getElementById('pv-market-price')?.value) || 0;
   const purchasePriceEl = parseFloat(document.getElementById('pv-purchase-price')?.value) || ins.purchasePrice || 0;
-  const displayMode   = document.querySelector('input[name="pv-display"]:checked')?.value || 'total';
+  const displayMode     = document.querySelector('input[name="pv-display"]:checked')?.value || 'total';
   if (!valuationDate) return;
 
   const units     = ins.units     || 1;
@@ -3690,34 +3947,71 @@ function calcPV() {
   const duration    = pv > 0 ? weightedTime / pv : 0;
   const modDuration = duration / (1 + discountRate);
 
-  // ── Accrued Interest at valuation date ──
-  let accrued = 0;
+  // ── Accrued Interest: Excel Actual/365 method ──
+  // AI = O/S_Principal × Coupon × Days_since_last_IP / 365
+  // Days = valuation date - last IP date (or purchase date if no prior coupon)
+  const couponRate = ins.nominal || 0;  // annual coupon rate
+  const osPrincipal = (() => {
+    // Outstanding principal at valuation date
+    let os = units * faceValue;
+    ins.cashflows.filter(cf => cf.date <= valuationDate && (cf.principal||0) > 0).forEach(cf => {
+      os -= (cf.principal||0);
+    });
+    return Math.max(0, os);
+  })();
+
   const allCoupons  = ins.cashflows.filter(cf => (cf.interest||0) > 0).sort((a,b)=>a.date.localeCompare(b.date));
   const pastCoupons = allCoupons.filter(cf => cf.date <= valuationDate);
   const nextCoupon  = allCoupons.find(cf => cf.date > valuationDate);
+
+  let accrued = 0;
+  let accruedDays = 0;
+  let lastIPDate = null;
+
   if (nextCoupon) {
-    // Use last paid coupon if available, otherwise use purchase date
-    const refDate   = pastCoupons.length > 0
-      ? new Date(pastCoupons[pastCoupons.length-1].date)
-      : (ins.purchaseDate ? new Date(ins.purchaseDate) : null);
-    if (refDate) {
-      const nextD   = new Date(nextCoupon.date);
-      const period  = (nextD - refDate) / 86400000;
-      const elapsed = (valD - refDate) / 86400000;
-      if (period > 0 && elapsed > 0 && elapsed <= period) {
-        accrued = (nextCoupon.interest||0) * (elapsed / period);
+    // Last IP date = last coupon paid date, or purchase date if buying before first coupon
+    if (pastCoupons.length > 0) {
+      lastIPDate = new Date(pastCoupons[pastCoupons.length-1].date);
+    } else if (ins.purchaseDate) {
+      lastIPDate = new Date(ins.purchaseDate);
+    } else {
+      // Fall back to first cashflow date (inception)
+      const firstCF = ins.cashflows.filter(cf => (cf.principal||0) < 0).sort((a,b)=>a.date.localeCompare(b.date))[0];
+      if (firstCF) lastIPDate = new Date(firstCF.date);
+    }
+
+    if (lastIPDate) {
+      accruedDays = Math.round((valD - lastIPDate) / 86400000);
+      if (accruedDays > 0 && couponRate > 0) {
+        // AI per unit = FV × coupon × days / 365  (Excel Actual/365)
+        accrued = osPrincipal * couponRate * accruedDays / 365;
       }
     }
   }
-  const cleanPrice = Math.max(0, pv - accrued); // PV cannot be negative
 
-  // ── Dirty Price (what investor actually paid) ──
-  const purchasePrice = marketPriceEl > 0 ? marketPriceEl : purchasePriceEl;
-  const dirtyTotal = purchasePrice > 0 ? purchasePrice * units + (ins.accruedPaid||0) : 0;
-  const cleanTotal = purchasePrice > 0 ? purchasePrice * units : 0;
+  // Accrued interest per unit and per ₹100 (for display — matches Excel Sheet 3)
+  const accruedPerUnit = units > 0 ? accrued / units : 0;
+  const accruedPer100  = totalFace > 0 ? (accrued / totalFace) * 100 : 0;
 
-  // ── YTM at purchase/dirty price (Newton-Raphson) ──
-  const effectivePrice = dirtyTotal > 0 ? dirtyTotal : pv;
+  // Clean Price (DCF PV) and Dirty Price
+  // Clean price per unit = PV / units
+  // Dirty price = Clean Price + Accrued Interest (per unit basis, per ₹100 basis)
+  const cleanPrice    = pv;                           // DCF present value of all future cashflows
+  const cleanPerUnit  = units > 0 ? pv / units : 0;  // per unit
+  const cleanPer100   = faceValue > 0 ? (cleanPerUnit / faceValue) * 100 : 0;  // per ₹100
+
+  const dirtyPerUnit  = cleanPerUnit + accruedPerUnit;
+  const dirtyTotal    = dirtyPerUnit * units;
+  const dirtyPer100   = cleanPer100 + accruedPer100;
+
+  // If purchase price is known, use it as the actual dirty price paid
+  const purchasePrice  = marketPriceEl > 0 ? marketPriceEl : purchasePriceEl;
+  const actualDirtyPU  = purchasePrice > 0 ? purchasePrice + (ins.accruedPaid||0)/units : dirtyPerUnit;
+  const actualDirtyTot = actualDirtyPU * units;
+
+  // ── YTM: solve at the actual purchase dirty price ──
+  const effectivePrice = actualDirtyTot > 0 ? actualDirtyTot : dirtyTotal;
+  const cleanTotal     = purchasePrice > 0 ? purchasePrice * units : cleanPrice;
   const ytmPurchase = solveYTM(future, effectivePrice, valuationDate);
   const ytmFace     = solveYTM(future, totalFace, valuationDate);
 
@@ -3754,29 +4048,49 @@ function calcPV() {
   const currentMV = marketPriceEl > 0 ? marketPriceEl * units : pv;
   const pnl = dirtyTotal > 0 ? currentMV - dirtyTotal : null;
 
+  // ── Gain/Loss vs actual purchase ──
+  const pvGain = actualDirtyTot > 0 ? cleanPrice - actualDirtyTot : null;
+  const pnl    = pvGain;
+
   // ── Display ──
-  set('pv-result',       disp(pv),                            'var(--accent)');
-  setSub('pv-result-sub', displayMode==='total' ? `Per unit: ₹${(pv/units).toLocaleString('en-IN',{maximumFractionDigits:2})} · Per ₹100: ₹${((pv/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}` : '');
-  set('pv-xirr', xirr !== null ? (xirr*100).toFixed(4)+'%' : '—', xirr !== null ? (xirr > 0 ? 'var(--green)' : 'var(--red)') : 'var(--muted)');
-  set('pv-ytm',          (ytmPurchase*100).toFixed(4)+'%',    ytmPurchase >= 0 ? 'var(--accent2)' : 'var(--red)');
-  setSub('pv-ytm-sub', dirtyTotal > 0 ? `Dirty: ₹${(dirtyTotal/units).toLocaleString('en-IN',{maximumFractionDigits:2})}/unit` : 'No purchase price — using DCF as price');
-  set('pv-ytm-face',     (ytmFace*100).toFixed(4)+'%',        'var(--yellow)');
-  set('pv-dirty',        dirtyTotal > 0 ? disp(dirtyTotal) : '—', 'var(--red)');
-  setSub('pv-dirty-sub', dirtyTotal > 0 ? `Per ₹100: ₹${((dirtyTotal/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}` : '');
-  set('pv-clean',        dirtyTotal > 0 ? disp(cleanTotal) : disp(cleanPrice), 'var(--text)');
-  setSub('pv-clean-sub', dirtyTotal > 0 ? `Per ₹100: ₹${((cleanTotal/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}` : `Per ₹100: ₹${((cleanPrice/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}`);
-  set('pv-accrued',      disp(accrued),                       'var(--muted)');
-  setSub('pv-accrued-sub', accrued > 0 ? `Per ₹100: ₹${((accrued/totalFace)*100).toLocaleString('en-IN',{maximumFractionDigits:4})}` : '');
-  set('pv-gain',         pvGain !== null ? dispSgn(pvGain) : '—', pvGain === null ? 'var(--muted)' : pvGain >= 0 ? 'var(--green)' : 'var(--red)');
-  set('pv-pnl',          pnl !== null ? dispSgn(pnl) : '—',       pnl === null ? 'var(--muted)' : pnl >= 0 ? 'var(--green)' : 'var(--red)');
-  set('pv-duration',     duration.toFixed(3)+' yrs',          'var(--muted)');
-  set('pv-mod-duration', modDuration.toFixed(3),              'var(--muted)');
+  const f4 = n => n.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  const f2 = n => n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  set('pv-result', disp(cleanPrice), 'var(--accent)');
+  setSub('pv-result-sub',
+    'Per unit: ₹' + f2(cleanPerUnit) + ' · Per ₹100: ' + f4(cleanPer100));
+  set('pv-xirr', xirr !== null ? (xirr*100).toFixed(4)+'%' : '—',
+      xirr !== null ? (xirr > 0 ? 'var(--green)' : 'var(--red)') : 'var(--muted)');
+  set('pv-ytm', (ytmPurchase*100).toFixed(4)+'%', ytmPurchase >= 0 ? 'var(--accent2)' : 'var(--red)');
+  setSub('pv-ytm-sub', 'At dirty price ₹' + f2(actualDirtyPU) + '/unit');
+  set('pv-ytm-face', (ytmFace*100).toFixed(4)+'%', 'var(--yellow)');
+  // Dirty price (from Excel Sheet 3 methodology)
+  set('pv-dirty', '₹' + f2(dirtyPerUnit) + '/unit', 'var(--red)');
+  setSub('pv-dirty-sub',
+    'Total: ₹' + f2(dirtyTotal) + ' · Per ₹100: ' + f4(dirtyPer100));
+  set('pv-clean', '₹' + f2(cleanPerUnit) + '/unit', 'var(--text)');
+  setSub('pv-clean-sub',
+    'Total: ₹' + f2(cleanPrice) + ' · Per ₹100: ' + f4(cleanPer100));
+  set('pv-accrued',
+    accruedDays > 0 ? '₹' + f2(accruedPerUnit) + '/unit (' + accruedDays + 'd)' : '—',
+    'var(--muted)');
+  setSub('pv-accrued-sub',
+    accrued > 0 ? 'Total: ₹' + f2(accrued) + ' · Per ₹100: ' + f4(accruedPer100) : '');
+  set('pv-gain', pvGain !== null ? dispSgn(pvGain) : '—',
+      pvGain === null ? 'var(--muted)' : pvGain >= 0 ? 'var(--green)' : 'var(--red)');
+  set('pv-pnl', pnl !== null ? dispSgn(pnl) : '—',
+      pnl === null ? 'var(--muted)' : pnl >= 0 ? 'var(--green)' : 'var(--red)');
+  set('pv-duration', duration.toFixed(3)+' yrs', 'var(--muted)');
+  set('pv-mod-duration', modDuration.toFixed(3), 'var(--muted)');
 
   document.getElementById('pv-cashflow-count').innerHTML =
-    `<strong style="color:var(--text);">${future.length}</strong> future cashflows &nbsp;·&nbsp;
-     Valuation: <strong style="color:var(--text);">${valuationDate}</strong> &nbsp;·&nbsp;
-     Units: <strong style="color:var(--text);">${units}</strong> × ₹${faceValue.toLocaleString('en-IN')} = ₹${totalFace.toLocaleString('en-IN')} face
-     ${purchasePrice > 0 ? ` &nbsp;·&nbsp; Purchase: <strong style="color:var(--red);">₹${purchasePrice.toLocaleString('en-IN')}/unit</strong> (dirty: ₹${dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:2})})` : ' &nbsp;·&nbsp; No purchase price — enter above for XIRR/YTM'}`;
+    '<strong style="color:var(--text);">' + future.length + '</strong> future cashflows'
+    + ' &nbsp;·&nbsp; Valuation: <strong style="color:var(--text);">' + valuationDate + '</strong>'
+    + ' &nbsp;·&nbsp; Units: <strong>' + units + '</strong> × ₹' + faceValue.toLocaleString('en-IN') + ' = ₹' + totalFace.toLocaleString('en-IN') + ' face'
+    + (accruedDays !== 0 ? ' &nbsp;·&nbsp; Acc. Days: <strong style="color:var(--yellow);">' + accruedDays + 'd</strong>'
+       + ' &nbsp;·&nbsp; AI: <strong style="color:var(--yellow);">₹' + accrued.toLocaleString('en-IN',{maximumFractionDigits:2}) + '</strong>'
+       + ' (' + accruedPer100.toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4}) + '/₹100)' : '')
+    + (purchasePrice > 0 ? ' &nbsp;·&nbsp; Purchase: <strong style="color:var(--red);">₹' + purchasePrice.toLocaleString('en-IN') + '/unit</strong>' : ' &nbsp;·&nbsp; Enter purchase price for dirty price');
 }
 
 
@@ -5405,6 +5719,497 @@ function downloadText(text, filename, mime) {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════
+// NEW NAVIGATION SYSTEM — sidebar + subnavigation
+// ═══════════════════════════════════════════════════
+let currentSection = 'dashboard';
+let currentSubTab  = 'dashboard';
+let sidebarCollapsed = false;
+
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  const sb = document.getElementById('sidebar');
+  if (sb) sb.classList.toggle('collapsed', sidebarCollapsed);
+}
+
+// Update sidebar badges
+function updateSidebarBadges() {
+  const bondCount = instruments.length;
+  const el = document.getElementById('nav-bonds-badge');
+  if (el) el.textContent = bondCount;
+  // FD, RD counts from portfolioData
+  var fdEl = document.getElementById('nav-fd-badge');
+  if (fdEl) fdEl.textContent = (portfolioData.fd||[]).length;
+  var rdEl = document.getElementById('nav-rd-badge');
+  if (rdEl) rdEl.textContent = (portfolioData.rd||[]).length;
+}
+
+// Navigate to a section
+function navTo(section) {
+  currentSection = section;
+  currentSubTab  = 'dashboard';
+
+  // Update active nav item
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    el.classList.remove('active');
+  });
+  var navEl = document.getElementById('nav-' + section);
+  if (navEl) navEl.classList.add('active');
+
+  // Update header
+  var titles = {
+    dashboard:   { title: '📊 Dashboard', sub: 'Portfolio overview · All asset classes' },
+    bonds:       { title: '📑 Bonds & NCDs', sub: 'Fixed income · Bond schedule · PV / Dirty Price' },
+    fd:          { title: '🏦 Fixed Deposits', sub: 'Bank and NBFC fixed deposits' },
+    rd:          { title: '📅 Recurring Deposits', sub: 'Monthly recurring deposit schedules' },
+    cp:          { title: '📄 Commercial Papers', sub: 'Short-term money market instruments' },
+    equity:      { title: '📈 Equity / Stocks', sub: 'Listed shares and equity portfolios' },
+    mf:          { title: '🧺 Mutual Funds', sub: 'Open-ended and closed-ended fund holdings' },
+    nps:         { title: '🏛️ NPS', sub: 'National Pension System — Tier I & II' },
+    ppf:         { title: '🔒 PPF / PF', sub: 'Public Provident Fund and Employee PF' },
+    gold:        { title: '🥇 Gold / SGBs', sub: 'Physical gold, Gold ETFs, Sovereign Gold Bonds' },
+    insurance:   { title: '🛡️ Insurance / ULIP', sub: 'Life cover and investment-linked policies' },
+    realestate:  { title: '🏠 Real Estate', sub: 'Property investments and rental income' },
+    cashflows:   { title: '⏰ Cashflow Calendar', sub: 'Upcoming and past cashflows across all instruments' },
+  };
+  var info = titles[section] || { title: section, sub: '' };
+  var titleEl = document.getElementById('content-title');
+  var subEl   = document.getElementById('content-subtitle');
+  if (titleEl) titleEl.innerHTML = info.title;
+  if (subEl)   subEl.textContent = info.sub;
+
+  // Show/hide subnav (not for dashboard or cashflows)
+  var showSubnav = !['dashboard', 'cashflows'].includes(section);
+  var subnavEl = document.getElementById('subnav');
+  if (subnavEl) subnavEl.style.display = showSubnav ? 'flex' : 'none';
+
+  // Activate first subtab
+  switchSubTab('dashboard');
+}
+
+function switchSubTab(tab) {
+  currentSubTab = tab;
+  document.querySelectorAll('.subnav-tab').forEach(function(el) {
+    el.classList.remove('active');
+  });
+  var tabEl = document.getElementById('subtab-' + tab);
+  if (tabEl) tabEl.classList.add('active');
+  renderCurrentPage();
+}
+
+function renderCurrentPage() {
+  var el = document.getElementById('page-content');
+  if (!el) return;
+  updateSidebarBadges();
+
+  if (currentSection === 'dashboard') {
+    el.innerHTML = renderMainDashboard();
+  } else if (currentSection === 'bonds') {
+    el.innerHTML = renderBondsPage(currentSubTab);
+  } else if (currentSection === 'cashflows') {
+    el.innerHTML = renderCashflowCalendar();
+  } else {
+    // Portfolio sections (FD, MF, etc.)
+    el.innerHTML = renderPortfolioSection(currentSection, currentSubTab);
+  }
+}
+
+// ── Main Dashboard: overview of all asset classes ──
+function renderMainDashboard() {
+  var today = getToday();
+  // Bond metrics
+  var bondInvested = 0, bondOS = 0, bondUpcoming = 0, bondReceived = 0;
+  instruments.forEach(function(ins) {
+    var rows = computeRows(ins);
+    rows.forEach(function(r) {
+      if (r.isInv) bondInvested += Math.abs(r.principal);
+      else if (r.date <= today) bondReceived += r.cfAfterTds;
+    });
+    // Outstanding
+    var inv = ins.cashflows.filter(function(cf){return (cf.principal||0)<0;}).reduce(function(a,cf){return a+Math.abs(cf.principal||0);},0);
+    var rep = ins.cashflows.filter(function(cf){return cf.date<=today.toISOString().slice(0,10)&&(cf.principal||0)>0;}).reduce(function(a,cf){return a+(cf.principal||0);},0);
+    bondOS += Math.max(0, inv - rep);
+    // Upcoming (next 30 days)
+    var cutoff = new Date(today); cutoff.setDate(cutoff.getDate()+30);
+    ins.cashflows.forEach(function(cf) {
+      var d = new Date(cf.date);
+      if (d > today && d <= cutoff) {
+        var tds = (cf.interest||0) > 0 ? (cf.interest||0)*(ins.tdsRate||0.1) : 0;
+        bondUpcoming += (cf.principal||0) + (cf.interest||0) - tds;
+      }
+    });
+  });
+
+  // Portfolio section totals
+  var portInvested = 0, portValue = 0;
+  Object.keys(portfolioData).forEach(function(key) {
+    if (key.startsWith('_')) return;
+    (portfolioData[key]||[]).forEach(function(item) {
+      portInvested += item.invested || 0;
+      portValue    += item.currentValue || item.invested || 0;
+    });
+  });
+  var totalInvested = bondInvested + portInvested;
+  var totalValue    = bondOS + portValue;
+
+  var avgXirr = instruments.length > 0
+    ? instruments.reduce(function(a,i){return a+(i.xirr||0);},0) / instruments.length : 0;
+
+  var html = '<div class="sec-kpi-grid">';
+  html += kpiCard('Total Invested', fmtPort(totalInvested), 'Bonds + all asset classes', 'kpi-gold', '', function(){});
+  html += kpiCard('Current / O/S Value', fmtPort(totalValue), 'Mark-to-market estimate', 'kpi-blue', '', function(){});
+  html += kpiCard('Bonds O/S Principal', fmtPort(bondOS), instruments.length+' instruments', 'kpi-green', '', function(){navTo('bonds');});
+  html += kpiCard('Upcoming (30d)', fmtPort(bondUpcoming), 'Net inflows next 30 days', 'kpi-purple', '→', function(){navTo('cashflows');});
+  html += kpiCard('Returns Received', fmtPort(bondReceived), 'All past bond cashflows', 'kpi-blue', '', function(){});
+  html += kpiCard('Avg Bond XIRR', fmtPct2(avgXirr), 'Post-TDS annualised return', 'kpi-gold', '', function(){});
+  html += '</div>';
+
+  // Asset class quick summary table
+  html += '<div class="bond-card" style="margin-bottom:16px;">';
+  html += '<div class="bond-card-header">Asset Class Summary</div>';
+  html += '<div class="bond-card-body">';
+  html += '<table style="width:100%;font-size:11px;font-family:var(--font-mono);">';
+  html += '<thead><tr style="border-bottom:1px solid var(--border);">'
+    + '<th style="text-align:left;padding:6px 8px;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:0.1em;">Asset Class</th>'
+    + '<th style="text-align:right;padding:6px 8px;color:var(--muted);font-size:8px;">Count</th>'
+    + '<th style="text-align:right;padding:6px 8px;color:var(--muted);font-size:8px;">Invested</th>'
+    + '<th style="text-align:right;padding:6px 8px;color:var(--muted);font-size:8px;">Current Value</th>'
+    + '<th style="text-align:right;padding:6px 8px;color:var(--muted);font-size:8px;">Return %</th>'
+    + '</tr></thead><tbody>';
+
+  // Bonds row
+  html += '<tr style="cursor:pointer;border-bottom:1px solid rgba(34,40,64,0.4);" onclick="navTo(\'bonds\')">'
+    + '<td style="padding:7px 8px;color:var(--text);">📑 Bonds / NCDs</td>'
+    + '<td style="text-align:right;padding:7px 8px;color:var(--accent2);">'+instruments.length+'</td>'
+    + '<td style="text-align:right;padding:7px 8px;color:var(--accent);">'+fmtPort(bondInvested)+'</td>'
+    + '<td style="text-align:right;padding:7px 8px;color:var(--green);">'+fmtPort(bondOS)+'</td>'
+    + '<td style="text-align:right;padding:7px 8px;color:var(--green);">'+fmtPct2(avgXirr)+' XIRR</td>'
+    + '</tr>';
+
+  var sections = [
+    {key:'fd', label:'🏦 Fixed Deposits'}, {key:'rd', label:'📅 Recurring Deposits'},
+    {key:'mf', label:'🧺 Mutual Funds'}, {key:'equity', label:'📈 Equity'},
+    {key:'nps', label:'🏛️ NPS'}, {key:'ppf', label:'🔒 PPF / PF'},
+    {key:'gold', label:'🥇 Gold / SGBs'}, {key:'cp', label:'📄 Commercial Papers'},
+    {key:'insurance', label:'🛡️ Insurance'}, {key:'realestate', label:'🏠 Real Estate'},
+  ];
+  sections.forEach(function(sec) {
+    var items = portfolioData[sec.key] || [];
+    if (!items.length) return;
+    var inv = items.reduce(function(a,i){return a+(i.invested||0);},0);
+    var val = items.reduce(function(a,i){return a+(i.currentValue||i.invested||0);},0);
+    var ret = inv > 0 ? (val-inv)/inv : 0;
+    html += '<tr style="cursor:pointer;border-bottom:1px solid rgba(34,40,64,0.4);" onclick="navTo(\''+sec.key+'\')">'
+      + '<td style="padding:7px 8px;color:var(--text);">'+sec.label+'</td>'
+      + '<td style="text-align:right;padding:7px 8px;color:var(--accent2);">'+items.length+'</td>'
+      + '<td style="text-align:right;padding:7px 8px;color:var(--accent);">'+fmtPort(inv)+'</td>'
+      + '<td style="text-align:right;padding:7px 8px;color:'+(val>=inv?'var(--green)':'var(--red)')+';">'+fmtPort(val)+'</td>'
+      + '<td style="text-align:right;padding:7px 8px;color:'+(ret>=0?'var(--green)':'var(--red)')+';">'+fmtPct2(ret)+'</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  return html;
+}
+
+// ── Bonds page — 4 sub-tabs ──
+function renderBondsPage(subTab) {
+  if (subTab === 'dashboard') return renderBondsDashboard();
+  if (subTab === 'summary')     return renderBondsSummary();
+  if (subTab === 'instruments') return renderBondsInstruments();
+  if (subTab === 'cashflows')   return renderBondsCashflows();
+  return renderBondsDashboard();
+}
+
+function renderBondsDashboard() {
+  var today = getToday();
+  var totalInvested = 0, totalOS = 0, totalGrossInt = 0, totalTDS = 0, totalNetInt = 0;
+  var upcoming30 = 0, received = 0;
+  var cut30 = new Date(today); cut30.setDate(cut30.getDate()+30);
+
+  instruments.forEach(function(ins) {
+    var rows = computeRows(ins);
+    rows.forEach(function(r) {
+      if (r.isInv) { totalInvested += Math.abs(r.principal); }
+      else {
+        totalGrossInt += r.interest;
+        totalTDS      += r.tds;
+        totalNetInt   += r.netInt;
+        if (r.date <= today) received += r.cfAfterTds;
+        if (r.date > today && r.date <= cut30) upcoming30 += r.cfAfterTds;
+      }
+    });
+    var inv = ins.cashflows.filter(function(cf){return (cf.principal||0)<0;}).reduce(function(a,cf){return a+Math.abs(cf.principal||0);},0);
+    var rep = ins.cashflows.filter(function(cf){return cf.date<=today.toISOString().slice(0,10)&&(cf.principal||0)>0;}).reduce(function(a,cf){return a+(cf.principal||0);},0);
+    totalOS += Math.max(0, inv - rep);
+  });
+
+  var avgXirr = instruments.length > 0
+    ? instruments.reduce(function(a,i){return a+(i.xirr||0);},0)/instruments.length : 0;
+
+  var html = '<div class="sec-kpi-grid">';
+  html += kpiCard('Total Invested', fmtPort(totalInvested), instruments.length+' instruments', 'kpi-red', '→', function(){switchSubTab('instruments');});
+  html += kpiCard('Outstanding Principal', fmtPort(totalOS), 'Deployed capital', 'kpi-green', '', function(){});
+  html += kpiCard('Gross Interest', fmtPort(totalGrossInt), 'Total interest accrued', 'kpi-blue', '', function(){});
+  html += kpiCard('TDS Deducted', fmtPort(totalTDS), 'Tax deducted at source', 'kpi-red', '', function(){});
+  html += kpiCard('Net Interest', fmtPort(totalNetInt), 'Post-TDS income', 'kpi-green', '', function(){});
+  html += kpiCard('Avg XIRR', fmtPct2(avgXirr), 'Post-TDS annualised return', 'kpi-gold', '', function(){});
+  html += kpiCard('Upcoming (30d)', fmtPort(upcoming30), 'Net inflows next 30 days', 'kpi-purple', '→', function(){switchSubTab('cashflows');});
+  html += kpiCard('Received Returns', fmtPort(received), 'All past net cashflows', 'kpi-blue', '', function(){});
+  html += '</div>';
+
+  // Instrument quick cards
+  if (instruments.length === 0) {
+    html += '<div class="empty-state"><div class="icon">📑</div><p>No bonds added yet.<br>Click "+ Add Bond / NCD" to get started.</p></div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">';
+    instruments.forEach(function(ins, idx) {
+      var u = ins.units||1; var fv = ins.faceValue||1000;
+      var pp = ins.purchasePrice||0;
+      var inv = ins.cashflows.filter(function(cf){return (cf.principal||0)<0;}).reduce(function(a,cf){return a+Math.abs(cf.principal||0);},0);
+      var rating = ins.creditRating && ins.creditRating.rating ? ins.creditRating.rating : '—';
+      var ratingCls = getRatingClass(rating);
+      html += '<div class="bond-card" style="cursor:pointer;" onclick="navTo(\'bonds\');setTimeout(function(){switchSubTab(\'instruments\');},50);">'
+        + '<div class="bond-card-header" style="display:flex;align-items:center;justify-content:space-between;">'
+        + '<span>'+ins.name+'</span>'
+        + '<span class="rating-badge '+ratingCls+'">'+rating+'</span>'
+        + '</div>'
+        + '<div class="bond-card-body">'
+        + bondField('Type', ins.type, '')
+        + bondField('ISIN', (ins.isins||[]).join(', ')||'—', 'blue')
+        + bondField('Units × Face', u+' × ₹'+fv.toLocaleString('en-IN'), '')
+        + bondField('Invested', fmtPort(inv||pp*u), 'red')
+        + bondField('Coupon', ins.nominal > 0 ? (ins.nominal*100).toFixed(4)+'%' : '—', 'gold')
+        + bondField('XIRR', ins.xirr > 0 ? (ins.xirr*100).toFixed(4)+'%' : '—', 'green')
+        + '</div>'
+        + '<div style="padding:8px 16px;border-top:1px solid var(--border);display:flex;gap:6px;">'
+        + '<button onclick="event.stopPropagation();openAddModal(\''+ins.id+'\')" class="btn btn-ghost btn-sm">✎ Edit</button>'
+        + '<button onclick="event.stopPropagation();openPVModal(\''+ins.id+'\')" class="btn btn-ghost btn-sm" style="color:var(--accent2);">📐 PV/YTM</button>'
+        + '<button onclick="event.stopPropagation();openSellModal(\''+ins.id+'\')" class="btn-sell">Sell</button>'
+        + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+function bondField(label, value, cls) {
+  return '<div class="bond-field"><span class="bf-label">'+label+'</span><span class="bf-value '+(cls||'')+'">'+value+'</span></div>';
+}
+
+function renderBondsSummary() {
+  if (!instruments.length) return '<div class="empty-state"><div class="icon">📑</div><p>No bonds added yet.</p></div>';
+  var today = getToday().toISOString().slice(0,10);
+  var html = '';
+
+  instruments.forEach(function(ins) {
+    var u = ins.units||1; var fv = ins.faceValue||1000;
+    var pp = ins.purchasePrice||0; var ai = ins.accruedPaid||0;
+    var coupon = ins.nominal||0;
+    var rows = computeRows(ins);
+    var totalInv = rows.filter(function(r){return r.isInv;}).reduce(function(a,r){return a+Math.abs(r.principal);},0);
+    var totalGI  = rows.filter(function(r){return !r.isInv;}).reduce(function(a,r){return a+r.interest;},0);
+    var totalTDS = rows.reduce(function(a,r){return a+r.tds;},0);
+    var totalNI  = totalGI - totalTDS;
+
+    // Excel Sheet 1 + 2 style
+    html += '<div class="bond-card" style="margin-bottom:16px;">';
+    // Header
+    html += '<div class="bond-card-header" style="display:flex;align-items:center;justify-content:space-between;">';
+    html += '<span>'+ins.name+' — Bond Details</span>';
+    html += '<div style="display:flex;gap:6px;">';
+    html += '<button onclick="downloadInstrumentCSV(\''+ins.id+'\')" style="background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);border-radius:5px;padding:2px 8px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ CSV</button>';
+    html += '<button onclick="downloadInstrumentExcel(\''+ins.id+'\')" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);border-radius:5px;padding:2px 8px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ Excel</button>';
+    html += '</div></div>';
+
+    // Two-column: Deal Commercials + Returns (Excel Sheet 1 layout)
+    html += '<div class="bond-detail-grid">';
+
+    // Left: Deal Commercials
+    html += '<div><div style="font-size:9px;color:var(--accent);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;padding:10px 16px 6px;border-bottom:1px solid var(--border);">A. Deal Commercials</div>';
+    var mat = ins.cashflows.filter(function(cf){return (cf.principal||0)>0;}).sort(function(a,b){return b.date.localeCompare(a.date);})[0];
+    var firstInt = ins.cashflows.filter(function(cf){return (cf.interest||0)>0;}).sort(function(a,b){return a.date.localeCompare(b.date);})[0];
+    html += '<div class="bond-card-body">';
+    html += bondField('Investment Quantum', '₹'+((totalInv||u*fv)).toLocaleString('en-IN',{maximumFractionDigits:0}), 'gold');
+    html += bondField('No. of Units', u.toLocaleString('en-IN'), '');
+    html += bondField('Face Value per Unit', '₹'+fv.toLocaleString('en-IN'), '');
+    html += bondField('Coupon Rate', coupon > 0 ? (coupon*100).toFixed(4)+'% p.a.' : '—', 'gold');
+    html += bondField('ISIN', (ins.isins||[]).join(', ')||'—', 'blue');
+    html += bondField('Type', ins.type, '');
+    html += bondField('Rating', ins.creditRating&&ins.creditRating.rating ? ins.creditRating.rating+' / '+(ins.creditRating.outlook||'—') : '—', 'blue');
+    html += bondField('Investment Date', ins.purchaseDate||'—', '');
+    html += bondField('Maturity Date', mat ? mat.date : '—', '');
+    html += bondField('First IP Date', firstInt ? firstInt.date : '—', '');
+    html += bondField('Record Date Lag', '15 days', '');
+    html += bondField('TDS Rate', ((ins.tdsRate||0.1)*100).toFixed(0)+'%', '');
+    html += '</div></div>';
+
+    // Right: Return Details
+    html += '<div><div style="font-size:9px;color:var(--green);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;padding:10px 16px 6px;border-bottom:1px solid var(--border);">B. Return Details</div>';
+    html += '<div class="bond-card-body">';
+    html += bondField('Nominal %', coupon > 0 ? (coupon*100).toFixed(4)+'%' : '—', 'gold');
+    html += bondField('XIRR % (Post-TDS)', ins.xirr > 0 ? (ins.xirr*100).toFixed(4)+'%' : '—', 'green');
+    html += bondField('Total Gross Interest', '₹'+totalGI.toLocaleString('en-IN',{maximumFractionDigits:0}), 'green');
+    html += bondField('Total TDS @'+(((ins.tdsRate||0.1)*100).toFixed(0))+'%', '₹'+totalTDS.toLocaleString('en-IN',{maximumFractionDigits:0}), 'red');
+    html += bondField('Total Net Interest', '₹'+totalNI.toLocaleString('en-IN',{maximumFractionDigits:0}), 'green');
+    html += bondField('Principal Repayments', '4 tranches of ₹'+((totalInv/4)||0).toLocaleString('en-IN',{maximumFractionDigits:0}), '');
+
+    // Purchase price / dirty price (Excel Sheet 3)
+    if (pp > 0) {
+      html += '</div><div style="background:rgba(251,113,133,0.04);border-top:1px solid var(--border);padding:10px 16px;">';
+      html += '<div style="font-size:9px;color:var(--red);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">C. Purchase / Price Details (Sheet 3)</div>';
+      html += bondField('Clean Price/unit', '₹'+pp.toLocaleString('en-IN',{maximumFractionDigits:2}), 'blue');
+      html += bondField('Accrued Int Paid', ai > 0 ? '₹'+ai.toLocaleString('en-IN',{maximumFractionDigits:2}) : 'Nil', ai>0?'red':'');
+      html += bondField('Dirty Price/unit', '₹'+(pp+(ai/u)).toLocaleString('en-IN',{maximumFractionDigits:2}), 'red');
+      html += bondField('Total Settlement', '₹'+(pp*u+ai).toLocaleString('en-IN',{maximumFractionDigits:0}), 'red');
+      html += bondField('Clean Price/₹100', ((pp/fv)*100).toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4}), 'blue');
+      html += bondField('Dirty Price/₹100', (((pp+(ai/u))/fv)*100).toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4}), 'red');
+    }
+
+    html += '</div></div></div></div>';
+  });
+  return html;
+}
+
+function renderBondsInstruments() {
+  if (!instruments.length) return '<div class="empty-state"><div class="icon">📑</div><p>No bonds added yet.</p></div>';
+  var html = '';
+  instruments.forEach(function(ins) {
+    html += '<div style="margin-bottom:20px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;">';
+    // Panel header
+    var u=ins.units||1; var fv=ins.faceValue||1000; var pp=ins.purchasePrice||0;
+    html += '<div style="background:var(--surface2);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">';
+    html += '<div>';
+    html += '<div style="font-size:14px;font-weight:600;color:var(--text);">'+ins.name+'</div>';
+    html += '<div style="font-size:10px;color:var(--muted);font-family:var(--font-mono);margin-top:2px;">';
+    html += ins.type+' · '+u+' units × ₹'+fv.toLocaleString('en-IN')+' · ISIN: '+((ins.isins||[]).join(', ')||'—');
+    if (ins.nominal > 0) html += ' · Coupon: '+(ins.nominal*100).toFixed(4)+'%';
+    if (ins.xirr > 0) html += ' · XIRR: <strong style="color:var(--green);">'+(ins.xirr*100).toFixed(4)+'%</strong>';
+    if (pp > 0) html += ' · Purchase: ₹'+pp.toLocaleString('en-IN',{maximumFractionDigits:2})+'/unit';
+    html += '</div></div>';
+    html += '<div style="display:flex;gap:6px;">';
+    html += '<button onclick="openAddModal(\''+ins.id+'\')" class="btn btn-ghost btn-sm">✎ Edit</button>';
+    html += '<button onclick="openPVModal(\''+ins.id+'\')" class="btn btn-ghost btn-sm" style="color:var(--accent2);">📐 PV/YTM</button>';
+    html += '<button onclick="openSellModal(\''+ins.id+'\')" class="btn-sell">Sell →</button>';
+    html += '<button onclick="addNewCashflowRow(\''+ins.id+'\')" class="btn btn-ghost btn-sm" style="color:var(--green);">+ Row</button>';
+    html += '</div></div>';
+    // Schedule table
+    html += '<div id="sched-'+ins.id+'">'+renderInstrumentCashflowTable(ins)+'</div>';
+    html += '</div>';
+  });
+  return html;
+}
+
+function renderBondsCashflows() {
+  var today = getToday();
+  var rows = [];
+  instruments.forEach(function(ins) {
+    computeRows(ins).forEach(function(r) {
+      rows.push({ ins: ins, r: r });
+    });
+  });
+  rows.sort(function(a,b){ return a.r.date - b.r.date; });
+
+  var html = '<div class="table-wrap"><table>';
+  html += '<thead><tr>'
+    + '<th>Date</th><th>Instrument</th><th>Record Date</th>'
+    + '<th>Principal</th><th>Gross Interest</th><th>TDS</th>'
+    + '<th>Net Cashflow</th><th>Per Unit</th><th>Status</th>'
+    + '</tr></thead><tbody>';
+
+  var cumul = 0;
+  rows.forEach(function(item) {
+    var r = item.r; var ins = item.ins;
+    if (r.interest === 0 && r.principal === 0) return;
+    cumul += r.cfAfterTds;
+    var past = r.date <= today;
+    var rowBg = r.isInv ? 'background:rgba(251,113,113,0.04);' : '';
+    var rdStr = r.recordDate ? (function(){try{return fmtDate(new Date(r.recordDate));}catch(e){return r.recordDate;}})() : '—';
+    html += '<tr class="'+(past&&!r.isInv?'row-past':'')+'" style="'+rowBg+'">'
+      + '<td class="date-col" style="white-space:nowrap;">'+fmtDate(r.date)+'</td>'
+      + '<td style="font-size:10px;">'+ins.name+'</td>'
+      + '<td class="date-col" style="color:var(--yellow);font-size:10px;">'+rdStr+'</td>'
+      + '<td style="text-align:right;font-size:11px;color:'+(r.isInv?'var(--red)':r.principal>0?'var(--green)':'var(--muted)')+';">'+(r.principal!==0?fmtCcy(r.principal):'—')+'</td>'
+      + '<td style="text-align:right;font-size:11px;color:var(--green);">'+(r.interest>0?fmtCcy(r.interest):'—')+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--red);">'+(r.tds>0?fmtCcy(r.tds):'—')+'</td>'
+      + '<td style="text-align:right;font-size:11px;font-weight:600;color:'+(r.cfAfterTds>=0?'var(--green)':'var(--red)')+';">'+fmtCcy(r.cfAfterTds)+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">'+(r.intPerUnit>0?fmtPerUnit(r.intPerUnit,1):'—')+'</td>'
+      + '<td style="font-size:9px;text-align:center;">'+(r.isInv?'<span style="color:var(--red);">Invested</span>':past?'<span style="color:var(--muted);">Paid</span>':'<span style="color:var(--green);">Upcoming</span>')+'</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function renderCashflowCalendar() {
+  return renderBondsCashflows();
+}
+
+function renderPortfolioSection(section, subTab) {
+  var PORT_SEC = { fd:'Fixed Deposits', rd:'Recurring Deposits', mf:'Mutual Funds', equity:'Equity',
+    nps:'NPS', ppf:'PPF / PF', gold:'Gold / SGBs', cp:'Commercial Papers',
+    insurance:'Insurance / ULIP', realestate:'Real Estate' };
+  var items = portfolioData[section] || [];
+  if (subTab === 'dashboard') {
+    var inv = items.reduce(function(a,i){return a+(i.invested||0);},0);
+    var val = items.reduce(function(a,i){return a+(i.currentValue||i.invested||0);},0);
+    var inc = items.reduce(function(a,i){return a+(i.incomeReceived||0);},0);
+    var html = '<div class="sec-kpi-grid">';
+    html += kpiCard(items.length+' Items', PORT_SEC[section]||section, 'in this category', 'kpi-blue', '→', function(){switchSubTab('instruments');});
+    html += kpiCard('Invested', fmtPort(inv), 'total cost basis', 'kpi-gold', '', function(){});
+    html += kpiCard('Current Value', fmtPort(val), 'mark-to-market', val>=inv?'kpi-green':'kpi-red', '', function(){});
+    html += kpiCard('Gain / (Loss)', fmtPort(val-inv), (inv>0?(((val-inv)/inv)*100).toFixed(2)+'% return':'—'), (val>=inv?'kpi-green':'kpi-red'), '', function(){});
+    if (inc > 0) html += kpiCard('Income Received', fmtPort(inc), 'dividends / interest', 'kpi-purple', '', function(){});
+    html += '</div>';
+    if (!items.length) html += '<div class="empty-state"><div class="icon">📁</div><p>No entries in '+PORT_SEC[section]+'.<br><button class="btn btn-primary" style="margin-top:12px;" onclick="openPortModal(\''+section+'\')">+ Add Entry</button></p></div>';
+    else {
+      html += '<div style="margin-top:8px;"><button class="btn btn-primary" onclick="openPortModal(\''+section+'\')">+ Add '+PORT_SEC[section]+'</button></div>';
+    }
+    return html;
+  }
+  if (subTab === 'instruments') {
+    var html2 = '<div style="margin-bottom:12px;"><button class="btn btn-primary" onclick="openPortModal(\''+section+'\')">+ Add '+PORT_SEC[section]+'</button></div>';
+    if (!items.length) return html2 + '<div class="empty-state"><div class="icon">📁</div><p>No entries yet.</p></div>';
+    var secObj = PORT_SECTIONS.find(function(s){return s.key===section;}) || {key:section,label:PORT_SEC[section]||section};
+    items.forEach(function(item,idx) {
+      html2 += renderPortItem(secObj, item, idx);
+    });
+    return html2;
+  }
+  return '<div style="color:var(--muted);padding:20px;">Select a view from the tabs above.</div>';
+}
+
+function kpiCard(label, value, sub, cls, arrow, onclick_fn) {
+  // onclick stored via data attribute, actual click handled inline
+  return '<div class="sec-kpi '+cls+'" onclick="('+onclick_fn.toString()+')()">'
+    + '<div class="kpi-label">'+label+'</div>'
+    + '<div class="kpi-value">'+value+'</div>'
+    + '<div class="kpi-sub">'+sub+'</div>'
+    + (arrow ? '<div class="kpi-arrow">'+arrow+'</div>' : '')
+    + '</div>';
+}
+
+// Override refresh() to call renderCurrentPage
+var _originalRefresh = null;
+function refresh() {
+  // Update sidebar badges
+  updateSidebarBadges();
+  // Render current page
+  renderCurrentPage();
+  // Also keep legacy compatibility
+  if (window._legacyRefresh) window._legacyRefresh();
+}
+
+// Override switchTab (legacy) to map to navTo
+function switchTab(tab, el) {
+  var sectionMap = {
+    dashboard: 'dashboard', overall: 'bonds', individual: 'bonds',
+    upcoming: 'cashflows', past: 'cashflows', portfolio: 'dashboard'
+  };
+  navTo(sectionMap[tab] || 'dashboard');
 }
 
 // ===================== THEME TOGGLE =====================
