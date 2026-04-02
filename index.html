@@ -3455,11 +3455,18 @@ function renderInstrumentCashflowTable(ins) {
     var rdStr = r.recordDate ? (function(){try{return fmtDate(new Date(r.recordDate));}catch(e){return r.recordDate;}})() : '—';
 
     // Status badge
+    var notes = r.notes || '';
+    var isSalePrin   = notes.startsWith('SALE-PRINCIPAL') || notes.startsWith('SALE: ');
+    var isSaleAccInt = notes.startsWith('SALE-ACCRUED-INT');
     var statusHtml = isInv
-      ? '<span style="color:var(--red);font-size:9px;">Investment</span>'
-      : past
-        ? '<span style="color:var(--muted);font-size:9px;">Paid</span>'
-        : '<span style="color:var(--green);font-size:9px;">Upcoming</span>';
+      ? '<span style="color:var(--red);font-size:9px;">📥 Invested</span>'
+      : isSalePrin
+        ? '<span style="color:var(--green);font-size:9px;font-weight:600;">💰 Sale — Principal</span>'
+        : isSaleAccInt
+          ? '<span style="color:var(--accent2);font-size:9px;">💰 Sale — Accrued Int</span>'
+          : past
+            ? '<span style="color:var(--muted);font-size:9px;">✓ Paid</span>'
+            : '<span style="color:var(--green);font-size:9px;">⏳ Upcoming</span>';
 
     var editBtn = '<button onclick="editCashflowInstrument(\'' + ins.id + '\',' + cfIdx + ')"'
       + ' style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:9px;">✎</button>';
@@ -3479,7 +3486,8 @@ function renderInstrumentCashflowTable(ins) {
       + '<td style="text-align:right;font-size:11px;font-weight:600;color:'+netColor+';">'+fc(r.cfAfterTds)+'</td>'
       + '<td style="text-align:right;font-size:10px;color:var(--accent2);">'
         + (r.intPerUnit > 0 ? fp(r.intPerUnit,2) : '–')
-        + (r.pPerUnit > 0 ? '<br><span style="font-size:9px;color:var(--muted);">p: '+fp(r.pPerUnit,2)+'</span>' : '')
+        + (r.pPerUnit > 0 && !r.isInv && !(r.notes||'').startsWith('SALE') ? '<br><span style="font-size:9px;color:var(--muted);">p: '+fp(r.pPerUnit,2)+'</span>' : '')
+        + (r.isInv ? '<br><span style="font-size:9px;color:var(--muted);">p: '+fp(Math.abs(r.principal)/u,2)+'</span>' : '')
         + '</td>'
       + '<td style="text-align:right;font-size:10px;color:var(--yellow);">'
         + (r.intPer100 > 0 ? r.intPer100.toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4}) : '–')
@@ -4520,7 +4528,9 @@ function renderFDItem(sec, item, idx) {
     + itemActions('fd', idx)
     + '</div>'
     + metricsRow(item.principal, isMatured ? matAmt : calcFDCurrentValue(item), item.interestReceived||0, null, cagr,
-        portMetric('Maturity Amt', fmtPort(matAmt), 'pos')
+        portMetric('Invested', fmtPort(item.principal), 'acc')
+        + portMetric('Current Value', fmtPort(isMatured ? matAmt : calcFDCurrentValue(item)), isMatured||calcFDCurrentValue(item)>=item.principal?'pos':'neg')
+        + portMetric('Maturity Amt', fmtPort(matAmt), 'pos')
         + portMetric('Interest', fmtPort(gain), 'pos')
         + portMetric('TDS @'+((item.tdsRate||10))+'%', fmtPort(gain*(item.tdsRate||10)/100), 'neg')
       )
@@ -5199,10 +5209,35 @@ function collectPortForm(key) {
   });
   if (cfs.length) item.cashflows = cfs;
 
-  // Auto-calculate invested where applicable
+  // Auto-calculate invested so dashboard always has a consistent item.invested
+  if (key === 'fd')          item.invested = item.principal || 0;
+  if (key === 'rd')          item.invested = (item.monthlyAmount||0) * (item.tenureMonths||0);
+  if (key === 'cp')          item.invested = item.invested || item.faceValue || 0;
+  if (key === 'insurance')   item.invested = item.totalPremiumPaid || item.annualPremium || 0;
+  if (key === 'ppf')         item.invested = item.totalDeposited || item.annualDeposit || 0;
+  if (key === 'nps')         item.invested = item.totalContributed || 0;
   if (key === 'mf'      && !item.invested && item.units && item.avgNAV)   item.invested = item.units * item.avgNAV;
   if (key === 'equity'  && !item.invested && item.shares && item.avgBuyPrice) item.invested = item.shares * item.avgBuyPrice;
-  if (key === 'realestate') item.invested = item.purchasePrice;
+  if (key === 'realestate') item.invested = item.purchasePrice || 0;
+  // Auto-calculate currentValue where not set
+  if (key === 'fd' && !item.currentValue) {
+    // Calculate current value at today's date using compound interest
+    const r = (item.rate||0)/100;
+    const today = new Date().toISOString().slice(0,10);
+    const matD  = item.maturityDate;
+    const evalD = matD && today >= matD ? matD : today;
+    if (item.startDate && r > 0 && item.principal > 0) {
+      const yrs = Math.max(0, (new Date(evalD) - new Date(item.startDate)) / (365.25*86400000));
+      const compMap = {'Monthly':12,'Quarterly':4,'Half-Yearly':2,'Annual':1,'Simple':0};
+      const n = compMap[item.compounding] || 4;
+      item.currentValue = n === 0 ? item.principal*(1+r*yrs) : item.principal*Math.pow(1+r/n,n*yrs);
+    } else {
+      item.currentValue = item.principal || 0;
+    }
+  }
+  if (key === 'nps'  && !item.currentValue) item.currentValue = item.currentCorpus  || item.totalContributed || 0;
+  if (key === 'ppf'  && !item.currentValue) item.currentValue = item.currentBalance || item.totalDeposited    || 0;
+  if (key === 'rd'   && !item.currentValue) item.currentValue = item.invested;
 
   return item;
 }
@@ -5779,13 +5814,15 @@ function renderMainDashboard() {
     });
   });
 
-  // Portfolio section totals
+  // Portfolio section totals — use fallback fields per asset class
   var portInvested = 0, portValue = 0;
   Object.keys(portfolioData).forEach(function(key) {
-    if (key.startsWith('_')) return;
+    if (key.startsWith('_') || key.endsWith('_flows')) return;
     (portfolioData[key]||[]).forEach(function(item) {
-      portInvested += item.invested || 0;
-      portValue    += item.currentValue || item.invested || 0;
+      var inv = item.invested || item.principal || (item.monthlyAmount && item.tenureMonths ? item.monthlyAmount*item.tenureMonths : 0) || 0;
+      var val = item.currentValue || calcPortCurrentValue(key, item) || inv;
+      portInvested += inv;
+      portValue    += val;
     });
   });
   var totalInvested = bondInvested + portInvested;
@@ -5834,9 +5871,12 @@ function renderMainDashboard() {
   ];
   sections.forEach(function(sec) {
     var items = portfolioData[sec.key] || [];
-    // Always show rows even with 0 items (greyed out) so user knows sections exist
-    var inv = items.reduce(function(a,i){return a+(i.invested||0);},0);
-    var val = items.reduce(function(a,i){return a+(i.currentValue||i.invested||0);},0);
+    var inv = items.reduce(function(a,i){
+      return a + (i.invested || i.principal || (i.monthlyAmount&&i.tenureMonths?i.monthlyAmount*i.tenureMonths:0) || 0);
+    },0);
+    var val = items.reduce(function(a,i){
+      return a + calcPortCurrentValue(sec.key, i);
+    },0);
     var ret = inv > 0 ? (val-inv)/inv : 0;
     html += '<tr style="cursor:pointer;border-bottom:1px solid rgba(34,40,64,0.4);" onclick="navTo(\''+sec.key+'\')">'
       + '<td style="padding:7px 8px;color:var(--text);">'+sec.label+'</td>'
@@ -6143,9 +6183,13 @@ function renderPortfolioSection(section, subTab) {
   var label = PORT_SEC[section] || section;
 
   if (subTab === 'dashboard') {
-    var inv = items.reduce(function(a,i){return a+(i.invested||0);},0);
-    var val = items.reduce(function(a,i){return a+(i.currentValue||i.invested||0);},0);
-    var inc = items.reduce(function(a,i){return a+(i.incomeReceived||0);},0);
+    var inv = items.reduce(function(a,i){
+      return a + (i.invested || i.principal || (i.monthlyAmount&&i.tenureMonths?i.monthlyAmount*i.tenureMonths:0) || i.totalDeposited || i.totalContributed || i.purchasePrice || 0);
+    },0);
+    var val = items.reduce(function(a,i){
+      return a + (calcPortCurrentValue(section, i) || i.currentValue || i.invested || i.principal || 0);
+    },0);
+    var inc = items.reduce(function(a,i){return a+(i.incomeReceived||i.interestReceived||0);},0);
     var ret = inv > 0 ? ((val-inv)/inv)*100 : 0;
 
     var html = '<div class="sec-kpi-grid">';
@@ -6172,8 +6216,8 @@ function renderPortfolioSection(section, subTab) {
         + '<th style="text-align:right;padding:7px 12px;color:var(--muted);font-size:8px;">Return %</th>'
         + '</tr></thead><tbody>';
       items.forEach(function(item, idx) {
-        var iinv = item.invested||0;
-        var ival = item.currentValue||iinv;
+        var iinv = item.invested || item.principal || (item.monthlyAmount&&item.tenureMonths?item.monthlyAmount*item.tenureMonths:0) || 0;
+        var ival = calcPortCurrentValue(section, item) || iinv;
         var igain= ival-iinv;
         var iret = iinv>0?(igain/iinv)*100:0;
         html += '<tr style="border-bottom:1px solid rgba(34,40,64,0.4);cursor:pointer;" onclick="switchSubTab(\'instruments\')">'
@@ -6603,6 +6647,23 @@ function showLoginReminderPopup() {
     container.appendChild(div);
     setTimeout(function(){ if (div.parentElement) div.remove(); }, 12000);
   }, 2500); // 2.5 seconds after login
+}
+
+// ── Per-asset-class current value calculator (for dashboard totals) ──
+function calcPortCurrentValue(key, item) {
+  if (!item) return 0;
+  switch(key) {
+    case 'fd': return calcFDCurrentValue(item) || item.principal || 0;
+    case 'rd': return calcRDCurrentValue(item) || 0;
+    case 'mf': return (item.units||0) * (item.currentNAV||item.avgNAV||0) || item.invested || 0;
+    case 'equity': return (item.shares||0) * (item.currentPrice||item.avgBuyPrice||0) || item.invested || 0;
+    case 'nps': return item.currentCorpus || item.totalContributed || 0;
+    case 'ppf': return item.currentBalance || item.totalDeposited || 0;
+    case 'gold': return (item.grams||0) * (item.currentPrice||item.buyPrice||0) || item.invested || 0;
+    case 'insurance': return item.surrenderValue || item.totalPremiumPaid || 0;
+    case 'realestate': return item.currentValue || item.purchasePrice || 0;
+    default: return item.currentValue || item.invested || 0;
+  }
 }
 
 // ===================== THEME TOGGLE =====================
