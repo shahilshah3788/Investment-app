@@ -676,6 +676,10 @@
     <div class="nav-item" id="nav-cashflows" onclick="navTo('cashflows')">
       <span class="ni-icon">⏰</span><span class="ni-label">Cashflow Calendar</span>
     </div>
+    <div class="nav-item" id="nav-reminders" onclick="navTo('reminders')">
+      <span class="ni-icon">🔔</span><span class="ni-label">Reminders & Alerts</span>
+      <span class="ni-badge" id="nav-reminders-badge" style="background:var(--yellow);color:#0c0f17;display:none;">!</span>
+    </div>
 
   </div>
   <div class="sidebar-footer">
@@ -3385,153 +3389,169 @@ function deleteCashflowRow(insId, cfIdx) {
 }
 
 // Render individual instrument cashflows with edit buttons — Excel-aligned
-function renderInstrumentCashflowTable(ins) {
+function renderInstrumentCashflowTable(ins, viewMode) {
+  // viewMode: 'overall' (default) | 'perunit'
+  viewMode = viewMode || (ins._cfViewMode || 'overall');
+  ins._cfViewMode = viewMode;
+
   const todayStr  = getToday().toISOString().slice(0,10);
-  const u         = ins.units     || 1;
+  const u         = ins.units || 1;
   const fv        = ins.faceValue || 1000;
   const tdr       = ins.tdsRate   || 0.10;
   const totalFace = u * fv;
   const pp        = ins.purchasePrice || 0;
   const ai        = ins.accruedPaid   || 0;
   const dirtyTotal = pp > 0 ? (pp * u + ai) : 0;
-  const cleanPPU   = pp;  // clean price per unit
+  const div_u      = viewMode === 'perunit' ? u : 1;  // divisor for per-unit view
 
   if (!ins.cashflows.length) {
     return '<div style="color:var(--muted);font-size:12px;padding:14px;">No cashflows yet. Click + Row to add one.</div>';
   }
 
-  // Use enhanced computeRows for full metrics
   var rows_data = computeRows(ins);
 
-  // Compute summary totals
-  var totalGrossInt = 0, totalTDS = 0, totalNetInt = 0, totalPrincipal = 0, totalNetCF = 0;
+  // Totals (always on stored values — overall)
+  var totalGrossInt = 0, totalTDS = 0, totalNetInt = 0, totalPrincipalOut = 0, totalNetCF = 0;
   rows_data.forEach(function(r) {
     if (!r.isInv) {
-      totalGrossInt  += r.interest;
-      totalTDS       += r.tds;
-      totalNetInt    += r.netInt;
-      totalPrincipal += r.principal > 0 ? r.principal : 0;
-      totalNetCF     += r.cfAfterTds;
+      totalGrossInt    += r.interest;
+      totalTDS         += r.tds;
+      totalNetInt      += r.netInt;
+      totalPrincipalOut += Math.max(0, r.principal);
+      totalNetCF       += r.cfAfterTds;
     }
   });
   var totalInvested = rows_data.filter(function(r){return r.isInv;}).reduce(function(a,r){return a+Math.abs(r.principal);},0);
 
-  // ── Investment summary banner ──
+  // ── Toggle buttons ──
+  var toggleHtml = '<div style="background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    + '<span style="font-size:9px;font-family:var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;">View:</span>'
+    + '<button onclick="document.getElementById(\'sched-'+ins.id+'\').innerHTML=renderInstrumentCashflowTable(instruments.find(function(i){return String(i.id)===\''+ins.id+'\';}),\'overall\')" '
+    +   'style="background:'+(viewMode==='overall'?'var(--accent2)':'var(--surface)')+';color:'+(viewMode==='overall'?'#fff':'var(--muted)')+';border:1px solid var(--border);border-radius:5px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">Overall (×'+u+' units)</button>'
+    + '<button onclick="document.getElementById(\'sched-'+ins.id+'\').innerHTML=renderInstrumentCashflowTable(instruments.find(function(i){return String(i.id)===\''+ins.id+'\';}),\'perunit\')" '
+    +   'style="background:'+(viewMode==='perunit'?'var(--accent2)':'var(--surface)')+';color:'+(viewMode==='perunit'?'#fff':'var(--muted)')+';border:1px solid var(--border);border-radius:5px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">Per Unit</button>'
+    + '<span style="font-size:9px;color:var(--muted);font-family:var(--font-mono);">'
+    + (viewMode==='perunit' ? '÷ '+u+' units — showing cashflow per single unit' : u+' units · Total amounts as stored')
+    + '</span>'
+    + '</div>';
+
+  // ── Summary banner ──
   var bannerBg = pp > 0 ? 'background:rgba(251,113,133,0.05);' : 'background:var(--surface2);';
   var banner = '<div style="'+bannerBg+'border-bottom:1px solid var(--border);padding:10px 16px;display:flex;gap:20px;flex-wrap:wrap;font-size:10px;font-family:var(--font-mono);">';
   if (pp > 0) {
-    var cleanPer100 = ((cleanPPU / fv) * 100).toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4});
-    var dirtyPer100 = ((dirtyTotal/totalFace)*100).toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4});
-    banner += '<span><span style="color:var(--muted);">Clean Price</span> <strong style="color:var(--accent2);">₹'+pp.toLocaleString('en-IN',{maximumFractionDigits:2})+'/unit</strong>'
-            + ' &nbsp;|&nbsp; <strong style="color:var(--accent2);">'+cleanPer100+'/₹100</strong></span>';
-    if (ai > 0) banner += '<span><span style="color:var(--muted);">+Accrued Int</span> <strong style="color:var(--yellow);">₹'+ai.toLocaleString('en-IN',{maximumFractionDigits:2})+'</strong></span>';
-    banner += '<span><span style="color:var(--muted);">Dirty Price Total</span> <strong style="color:var(--red);">₹'+dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong>'
-            + ' &nbsp;('+dirtyPer100+'/₹100)</span>';
+    banner += '<span><span style="color:var(--muted);">Purchase Price</span> <strong style="color:var(--accent2);">₹'+pp.toLocaleString('en-IN',{maximumFractionDigits:2})+'/unit</strong>'
+            + ' &nbsp;|&nbsp; Total: <strong style="color:var(--red);">₹'+dirtyTotal.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
   } else if (totalInvested > 0) {
-    banner += '<span><span style="color:var(--muted);">Invested</span> <strong style="color:var(--red);">₹'+totalInvested.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
+    banner += '<span><span style="color:var(--muted);">Invested</span> <strong style="color:var(--red);">₹'+(totalInvested/div_u).toLocaleString('en-IN',{maximumFractionDigits:2})+'</strong>'
+            + (viewMode==='perunit'?' /unit':'')+' </span>';
   }
-  banner += '<span><span style="color:var(--muted);">Gross Interest</span> <strong>₹'+totalGrossInt.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
-  banner += '<span><span style="color:var(--muted);">TDS @'+(tdr*100).toFixed(0)+'%</span> <strong style="color:var(--red);">₹'+totalTDS.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
-  banner += '<span><span style="color:var(--muted);">Net Interest</span> <strong style="color:var(--green);">₹'+totalNetInt.toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
+  banner += '<span><span style="color:var(--muted);">Gross Int</span> <strong>₹'+(totalGrossInt/div_u).toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
+  banner += '<span><span style="color:var(--muted);">TDS</span> <strong style="color:var(--red);">₹'+(totalTDS/div_u).toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
+  banner += '<span><span style="color:var(--muted);">Net Int</span> <strong style="color:var(--green);">₹'+(totalNetInt/div_u).toLocaleString('en-IN',{maximumFractionDigits:0})+'</strong></span>';
   if (ins.xirr > 0) banner += '<span><span style="color:var(--muted);">XIRR</span> <strong style="color:var(--green);">'+(ins.xirr*100).toFixed(4)+'%</strong></span>';
-  if (ins.nominal > 0) banner += '<span><span style="color:var(--muted);">Nominal %</span> <strong>'+(ins.nominal*100).toFixed(4)+'%</strong></span>';
-  banner += '<button onclick="downloadInstrumentCSV(\'' + ins.id + '\')" style="margin-left:auto;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ CSV</button>';
-  banner += '<button onclick="downloadInstrumentExcel(\'' + ins.id + '\')" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ Excel</button>';
+  banner += '<button onclick="downloadInstrumentCSV(\''+ins.id+'\')" style="margin-left:auto;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);color:var(--accent2);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ CSV</button>';
+  banner += '<button onclick="downloadInstrumentExcel(\''+ins.id+'\')" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--green);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:var(--font-mono);font-size:9px;">⬇ Excel</button>';
   banner += '</div>';
 
   // ── Table rows ──
   var tbody = rows_data.map(function(r, cfIdx) {
-    var d       = r.date;
-    var p       = r.principal;
-    var int     = r.interest;
-    var past    = r.dateStr <= todayStr;
-    var isInv   = r.isInv;
-
-    var pColor  = isInv ? 'var(--red)' : (p > 0 ? 'var(--green)' : 'var(--muted)');
-    var netColor= r.cfAfterTds > 0 ? 'var(--green)' : r.cfAfterTds < 0 ? 'var(--red)' : 'var(--muted)';
-    var rowBg   = isInv ? 'background:rgba(251,113,133,0.04);' : (r.principal > 0 && !isInv ? 'background:rgba(52,211,153,0.04);' : '');
-    var rowCls  = (past && !isInv) ? 'row-past' : '';
-
-    var rdStr = r.recordDate ? (function(){try{return fmtDate(new Date(r.recordDate));}catch(e){return r.recordDate;}})() : '—';
-
-    // Status badge
+    var d     = r.date;
+    var p_raw = r.principal;
+    var i_raw = r.interest;
+    var isInv = r.isInv;
     var notes = r.notes || '';
-    var isSalePrin   = notes.startsWith('SALE-PRINCIPAL') || notes.startsWith('SALE: ');
+
+    // In per-unit view: divide stored totals by units
+    // Exception: investment row always shows total (what was actually paid)
+    var p   = isInv ? p_raw : p_raw / div_u;
+    var int = i_raw / div_u;
+    var tds = r.tds   / div_u;
+    var net = r.cfAfterTds / div_u;
+    var os  = r.osBefore > 0 ? r.osBefore / div_u : 0;
+
+    var pColor   = isInv ? 'var(--red)' : (p > 0 ? 'var(--green)' : 'var(--muted)');
+    var netColor = net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'var(--muted)';
+    var rowBg    = isInv ? 'background:rgba(251,113,133,0.04);' : (p_raw > 0 && !isInv ? 'background:rgba(52,211,153,0.04);' : '');
+    var rowCls   = (r.dateStr <= todayStr && !isInv) ? 'row-past' : '';
+    var rdStr    = r.recordDate ? fmtDate(new Date(r.recordDate)) : '—';
+
+    // Detect sale sub-types
+    var isSalePrin    = notes.startsWith('SALE-PRINCIPAL');
     var isSaleAccInt = notes.startsWith('SALE-ACCRUED-INT');
-    var statusHtml = isInv
-      ? '<span style="color:var(--red);font-size:9px;">📥 Invested</span>'
-      : isSalePrin
-        ? '<span style="color:var(--green);font-size:9px;font-weight:600;">💰 Sale — Principal</span>'
-        : isSaleAccInt
-          ? '<span style="color:var(--accent2);font-size:9px;">💰 Sale — Accrued Int</span>'
-          : past
-            ? '<span style="color:var(--muted);font-size:9px;">✓ Paid</span>'
-            : '<span style="color:var(--green);font-size:9px;">⏳ Upcoming</span>';
+    var isSaleCapGain= notes.startsWith('SALE-CAPITAL-GAIN');
+    var isSaleRow    = isSalePrin || isSaleAccInt || isSaleCapGain;
+    var isSaleRow    = isSalePrin || isSaleAccInt;
 
-    var editBtn = '<button onclick="editCashflowInstrument(\'' + ins.id + '\',' + cfIdx + ')"'
-      + ' style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:9px;">✎</button>';
+    // Status
+    var statusHtml = isInv ? '<span style="color:var(--red);font-size:9px;font-weight:600;">📥 Invested</span>'
+      : isSalePrin      ? '<span style="color:var(--green);font-size:9px;font-weight:600;">💰 Sale — Principal</span>'
+      : isSaleAccInt    ? '<span style="color:var(--accent2);font-size:9px;font-weight:600;">💰 Sale — Accrued Int</span>'
+      : isSaleCapGain   ? '<span style="color:'+(p_raw>=0?'var(--green)':'var(--red)')+';font-size:9px;font-weight:600;">'+(p_raw>=0?'📈':'📉')+' Capital '+(p_raw>=0?'Gain':'Loss')+'</span>'
+      : r.dateStr <= todayStr ? '<span style="color:var(--muted);font-size:9px;">✓ Paid</span>'
+      : '<span style="color:var(--green);font-size:9px;">⏳ Upcoming</span>';
 
-    // Format helpers
+    // Per-unit column (only in overall view; in per-unit view the values ARE per unit)
+    var perUnitCell = '—';
+    if (viewMode === 'overall') {
+      perUnitCell = '';
+      if (int > 0) perUnitCell += '₹' + (i_raw/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+      if (p_raw > 0 && !isInv && !isSaleRow) perUnitCell += (perUnitCell?'<br>':'') + '<span style="font-size:9px;color:var(--muted);">p: ₹'+(p_raw/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>';
+      if (isInv) perUnitCell = '<span style="color:var(--muted);font-size:9px;">₹'+(Math.abs(p_raw)/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'/unit</span>';
+      if (!perUnitCell) perUnitCell = '—';
+    } else {
+      perUnitCell = '<span style="color:var(--muted);font-size:9px;">= overall÷'+u+'</span>';
+    }
+
+    var editBtn = '<button onclick="editCashflowInstrument(\''+ins.id+'\','+cfIdx+')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:9px;">✎</button>';
+
     function fc(n) { return n !== 0 ? fmtCcy(n) : '–'; }
-    function fp(n,dec) { dec=dec||2; return n !== 0 ? ('₹'+Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:dec,maximumFractionDigits:dec})) : '–'; }
 
     return '<tr id="cf-row-'+ins.id+'-'+cfIdx+'" class="'+rowCls+'" style="'+rowBg+'">'
       + '<td class="date-col" style="white-space:nowrap;">'+fmtDate(d)+'</td>'
       + '<td class="date-col" style="color:var(--yellow);font-size:10px;white-space:nowrap;">'+rdStr+'</td>'
       + '<td style="text-align:right;font-size:10px;color:var(--muted);">'+(r.days > 0 ? r.days : '—')+'</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--muted);">'+(r.osBefore > 0 ? ('₹'+r.osBefore.toLocaleString('en-IN',{maximumFractionDigits:0})) : '—')+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--muted);">'+(os > 0 ? fmtCcy(os) : '—')+'</td>'
       + '<td style="text-align:right;font-size:11px;color:'+pColor+';">'+(p !== 0 ? fc(p) : '–')+'</td>'
       + '<td style="text-align:right;font-size:11px;color:var(--green);">'+(int > 0 ? fc(int) : '–')+'</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--red);">'+(r.tds > 0 ? fc(r.tds) : '–')+'</td>'
-      + '<td style="text-align:right;font-size:11px;font-weight:600;color:'+netColor+';">'+fc(r.cfAfterTds)+'</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">'
-        + (r.intPerUnit > 0 ? fp(r.intPerUnit,2) : '–')
-        + (r.pPerUnit > 0 && !r.isInv && !(r.notes||'').startsWith('SALE') ? '<br><span style="font-size:9px;color:var(--muted);">p: '+fp(r.pPerUnit,2)+'</span>' : '')
-        + (r.isInv ? '<br><span style="font-size:9px;color:var(--muted);">p: '+fp(Math.abs(r.principal)/u,2)+'</span>' : '')
-        + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--yellow);">'
-        + (r.intPer100 > 0 ? r.intPer100.toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4}) : '–')
-        + (r.pPer100   > 0 ? '<br><span style="font-size:9px;color:var(--muted);">p: '+r.pPer100.toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4})+'</span>' : '')
-        + '</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--muted);">'+(r.cumCF !== 0 ? ('₹'+r.cumCF.toLocaleString('en-IN',{maximumFractionDigits:0})) : '—')+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--red);">'+(tds > 0 ? fc(tds) : '–')+'</td>'
+      + '<td style="text-align:right;font-size:11px;font-weight:600;color:'+netColor+';">'+fc(net)+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">'+perUnitCell+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--muted);">'+(r.cumCF !== 0 ? fmtCcy(r.cumCF/div_u) : '—')+'</td>'
       + '<td style="font-size:9px;text-align:center;">'+statusHtml+'</td>'
-      + '<td style="font-size:9px;color:var(--muted);max-width:80px;overflow:hidden;text-overflow:ellipsis;">'+( r.notes || '—')+'</td>'
+      + '<td style="font-size:9px;color:var(--muted);max-width:80px;overflow:hidden;text-overflow:ellipsis;">'+notes.replace(/^SALE-PRINCIPAL:/,'Principal').replace(/^SALE-ACCRUED-INT:/,'Accrued Int').replace(/^SALE-CAPITAL-GAIN:/,'Cap Gain').replace(/^SALE:/,'SALE')+'</td>'
       + '<td>'+editBtn+'</td>'
       + '</tr>';
   }).join('');
 
   // Totals row
   var totRow = '<tr style="background:var(--surface2);font-weight:600;border-top:2px solid var(--border);">'
-    + '<td colspan="4" class="date-col" style="font-family:var(--font-mono);font-size:10px;">TOTALS</td>'
-    + '<td style="text-align:right;font-size:11px;color:var(--red);font-family:var(--font-mono);">₹'+totalInvested.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
-    + '<td style="text-align:right;font-size:11px;color:var(--green);font-family:var(--font-mono);">₹'+totalGrossInt.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
-    + '<td style="text-align:right;font-size:11px;color:var(--red);font-family:var(--font-mono);">₹'+totalTDS.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
-    + '<td style="text-align:right;font-size:11px;color:var(--green);font-family:var(--font-mono);">₹'+totalNetCF.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
-    + '<td colspan="6"></td>'
+    + '<td colspan="4" class="date-col" style="font-family:var(--font-mono);font-size:10px;">TOTALS'+(viewMode==='perunit'?' (per unit)':' ('+u+' units)')+'</td>'
+    + '<td style="text-align:right;font-size:11px;color:var(--red);">'+fmtCcy(totalPrincipalOut/div_u)+'</td>'
+    + '<td style="text-align:right;font-size:11px;color:var(--green);">'+fmtCcy(totalGrossInt/div_u)+'</td>'
+    + '<td style="text-align:right;font-size:11px;color:var(--red);">'+fmtCcy(totalTDS/div_u)+'</td>'
+    + '<td style="text-align:right;font-size:11px;color:var(--green);">'+fmtCcy(totalNetCF/div_u)+'</td>'
+    + '<td colspan="5"></td>'
     + '</tr>';
 
   var thead = '<thead><tr style="font-size:8px;">'
-    + '<th>Payment Date</th>'
-    + '<th style="color:var(--yellow);">Record Date</th>'
+    + '<th>Payment Date</th><th style="color:var(--yellow);">Record Date</th>'
     + '<th>Days</th>'
-    + '<th>O/S Principal</th>'
-    + '<th>Principal (₹)</th>'
-    + '<th>Gross Interest (₹)</th>'
+    + '<th>O/S Principal'+(viewMode==='perunit'?' /unit':'')+' (₹)</th>'
+    + '<th>Principal (₹)'+(viewMode==='perunit'?' /unit':'')+'</th>'
+    + '<th>Gross Interest (₹)'+(viewMode==='perunit'?' /unit':'')+'</th>'
     + '<th style="color:var(--red);">TDS</th>'
-    + '<th>Net Cashflow (₹)</th>'
-    + '<th style="color:var(--accent2);">Per Unit<br>(Int / Prin)</th>'
-    + '<th style="color:var(--yellow);">Per ₹100<br>(Int / Prin)</th>'
-    + '<th>Cumulative</th>'
-    + '<th>Status</th>'
-    + '<th>Notes</th>'
-    + '<th style="width:36px;"></th>'
-    + '</tr></thead>';
+    + '<th>Net Cashflow'+(viewMode==='perunit'?' /unit':'')+'</th>'
+    + '<th style="color:var(--accent2);">'+(viewMode==='perunit'?'= Overall÷'+u:'Per Unit')+'</th>'
+    + '<th>Cumulative</th><th>Status</th><th>Notes</th>'
+    + '<th style="width:36px;"></th></tr></thead>';
 
-  return banner
+  return toggleHtml + banner
     + '<div class="table-wrap" style="max-height:480px;overflow-y:auto;"><table>'
     + thead + '<tbody>' + tbody + totRow + '</tbody>'
     + '</table></div>';
 }
+
+
 
 
 
@@ -5435,65 +5455,102 @@ function confirmSell() {
   if (!ins) return;
   const date  = document.getElementById('sell-date').value;
   const units = parseInt(document.getElementById('sell-units').value) || 0;
-  const price = parseFloat(document.getElementById('sell-price').value) || 0;
+  const price = parseFloat(document.getElementById('sell-price').value) || 0;  // dirty price per unit
   const notes = document.getElementById('sell-notes').value || '';
-  if (!date || !units || !price) { toast('Please enter Sale Date, Units, and Price/XIRR', 'warn'); return; }
+  if (!date || !units || !price) { toast('Please enter Sale Date, Units, and Dirty Price/XIRR', 'warn'); return; }
   if (units > (ins.units||1)) { toast('Cannot sell more than ' + (ins.units||1) + ' units held', 'warn'); return; }
 
-  // Accrued interest at sell date
-  const fv = ins.faceValue || 1000;
-  const u  = ins.units || 1;
+  const fv         = ins.faceValue || 1000;
+  const u          = ins.units || 1;
   const couponRate = ins.nominal || 0;
-  const tdr = ins.tdsRate || 0.10;
+  const tdr        = ins.tdsRate || 0.10;
 
+  // O/S principal at sale date
   let osAtSell = u * fv;
-  ins.cashflows.filter(cf => cf.date <= date && (cf.principal||0) > 0).forEach(cf => { osAtSell -= (cf.principal||0); });
+  ins.cashflows.filter(cf => cf.date <= date && (cf.principal||0) > 0 && !(cf.notes||'').startsWith('SALE'))
+    .forEach(cf => { osAtSell -= (cf.principal||0); });
   osAtSell = Math.max(0, osAtSell);
   const osPerUnit = osAtSell / u;
 
-  const allCoupons  = ins.cashflows.filter(cf=>(cf.interest||0)>0).sort((a,b)=>a.date.localeCompare(b.date));
-  const pastCoupons = allCoupons.filter(cf=>cf.date<=date);
-  const nextCoupon  = allCoupons.find(cf=>cf.date>date);
-  let accruedPerUnit = 0;
+  // Accrued interest at sale date (Actual/365)
+  const allCoupons  = ins.cashflows.filter(cf => (cf.interest||0) > 0 && !(cf.notes||'').startsWith('SALE'))
+    .sort((a,b) => a.date.localeCompare(b.date));
+  const pastCoupons = allCoupons.filter(cf => cf.date <= date);
+  const nextCoupon  = allCoupons.find(cf => cf.date > date);
+  let accruedPerUnit = 0, accruedDays = 0;
   if (nextCoupon && couponRate > 0) {
-    const refDate = pastCoupons.length > 0 ? new Date(pastCoupons[pastCoupons.length-1].date) : (ins.purchaseDate ? new Date(ins.purchaseDate) : null);
+    const refDate = pastCoupons.length > 0 ? new Date(pastCoupons[pastCoupons.length-1].date)
+      : (ins.purchaseDate ? new Date(ins.purchaseDate) : null);
     if (refDate) {
-      const days = Math.round((new Date(date) - refDate) / 86400000);
-      if (days > 0) accruedPerUnit = osPerUnit * couponRate * days / 365;
+      accruedDays    = Math.round((new Date(date) - refDate) / 86400000);
+      if (accruedDays > 0) accruedPerUnit = osPerUnit * couponRate * accruedDays / 365;
     }
   }
 
-  const dirtyPerUnit  = price + accruedPerUnit;
-  const accruedTotal  = accruedPerUnit * units;
-  const principalPart = osPerUnit * units;
+  // price = dirty price per unit (from sell modal field)
+  // cleanPricePerUnit = dirty - accrued
+  const cleanPricePerUnit = price - accruedPerUnit;
 
-  // Record principal recovery as principal cashflow (no TDS)
-  // Record accrued interest as interest cashflow (TDS applies)
-  if (principalPart > 0) {
-    ins.cashflows.push({ date, principal: principalPart, interest: 0, recordDate: '', notes: 'SALE-PRINCIPAL: ' + units + ' unit(s) @ ₹' + price.toFixed(2) + '/unit' + (notes?' — '+notes:'') });
+  // Capital gain / loss per unit = clean sale price - OS principal per unit
+  const capitalGainPerUnit = cleanPricePerUnit - osPerUnit;
+
+  const osTotal       = osPerUnit       * units;
+  const accruedTotal  = accruedPerUnit  * units;
+  const capitalGain   = capitalGainPerUnit * units;
+  const dirtyTotal    = price * units;
+
+  // Record 3 separate cashflows:
+  // 1. Principal recovery (OS principal component) — no TDS
+  if (osTotal > 0) {
+    ins.cashflows.push({
+      date, principal: osTotal, interest: 0, recordDate: '',
+      notes: 'SALE-PRINCIPAL: ' + units + ' unit(s), OS ₹' + osPerUnit.toFixed(2) + '/unit' + (notes ? ' — ' + notes : '')
+    });
   }
+  // 2. Capital Gain — no TDS (treated as capital gains, not income)
+  if (Math.abs(capitalGain) > 0.01) {
+    ins.cashflows.push({
+      date,
+      principal: capitalGain,  // can be negative (loss)
+      interest: 0, recordDate: '',
+      notes: 'SALE-CAPITAL-GAIN: ' + (capitalGain >= 0 ? 'Gain' : 'Loss') + ' ₹' + Math.abs(capitalGainPerUnit).toFixed(2) + '/unit' + (notes ? ' — ' + notes : '')
+    });
+  }
+  // 3. Accrued interest — TDS applies
   if (accruedTotal > 0) {
-    ins.cashflows.push({ date, principal: 0, interest: accruedTotal, recordDate: '', notes: 'SALE-ACCRUED-INT' + (notes?' — '+notes:'') });
+    ins.cashflows.push({
+      date, principal: 0, interest: accruedTotal, recordDate: '',
+      notes: 'SALE-ACCRUED-INT: ' + accruedDays + 'd × ' + (couponRate*100).toFixed(2) + '% on ₹' + osPerUnit.toFixed(2) + (notes ? ' — ' + notes : '')
+    });
   }
+
   ins.cashflows.sort((a,b) => a.date.localeCompare(b.date));
   ins.units = Math.max(0, (ins.units||1) - units);
 
-  // Record in saleHistory for gain-on-sale tracking
+  // Record in saleHistory
   if (!ins.saleHistory) ins.saleHistory = [];
-  const invested = ins.cashflows.filter(cf=>(cf.principal||0)<0).reduce((a,cf)=>a+Math.abs(cf.principal||0),0) + principalPart;
-  const costPerUnit = invested > u ? invested / (u + units) : (ins.purchasePrice || fv);
+  const costBasis = (ins.purchasePrice || osPerUnit) * units;
   ins.saleHistory.push({
-    date, units, salePricePerUnit: price, accruedPerUnit,
-    dirtyPerUnit, totalProceeds: dirtyPerUnit * units,
-    costBasis: costPerUnit * units,
-    saleGain: principalPart - costPerUnit * units,
+    date, units,
+    dirtyPricePerUnit: price,
+    cleanPricePerUnit,
+    accruedPerUnit, accruedDays,
+    capitalGainPerUnit,
+    osPerUnit,
+    totalProceeds: dirtyTotal,
+    costBasis,
+    capitalGain,
+    accruedTotal,
     notes
   });
 
   closeModal('sell-modal');
   persistInstruments();
   refresh();
-  toast('Sale recorded · ₹' + principalPart.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' principal + ₹' + accruedTotal.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' accrued interest · ' + ins.units + ' units remaining', 'success');
+  toast('Sale recorded: ₹' + osTotal.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' principal'
+    + (capitalGain !== 0 ? ' + ₹' + Math.abs(capitalGain).toLocaleString('en-IN',{maximumFractionDigits:0}) + (capitalGain > 0 ? ' gain' : ' loss') : '')
+    + ' + ₹' + accruedTotal.toLocaleString('en-IN',{maximumFractionDigits:0}) + ' accrued int'
+    + ' | ' + ins.units + ' units remaining', 'success');
 }
 
 // ===================== DOWNLOAD / EXPORT =====================
@@ -5711,11 +5768,19 @@ function updateSidebarBadges() {
   const bondCount = instruments.length;
   const el = document.getElementById('nav-bonds-badge');
   if (el) el.textContent = bondCount;
-  // FD, RD counts from portfolioData
   var fdEl = document.getElementById('nav-fd-badge');
   if (fdEl) fdEl.textContent = (portfolioData.fd||[]).length;
   var rdEl = document.getElementById('nav-rd-badge');
   if (rdEl) rdEl.textContent = (portfolioData.rd||[]).length;
+  // Update reminders badge with urgent count
+  try {
+    var urgentItems = getReminderItems().filter(function(i){return i.urgent;});
+    var remBadge = document.getElementById('nav-reminders-badge');
+    if (remBadge) {
+      remBadge.style.display = urgentItems.length > 0 ? 'inline' : 'none';
+      remBadge.textContent   = urgentItems.length;
+    }
+  } catch(e) {}
 }
 
 // Navigate to a section
@@ -5745,6 +5810,7 @@ function navTo(section) {
     insurance:   { title: '🛡️ Insurance / ULIP', sub: 'Life cover and investment-linked policies' },
     realestate:  { title: '🏠 Real Estate', sub: 'Property investments and rental income' },
     cashflows:   { title: '⏰ Cashflow Calendar', sub: 'Upcoming and past cashflows across all instruments' },
+    reminders:   { title: '🔔 Reminders & Alerts', sub: 'Configure and send cashflow reminders via Email, WhatsApp, SMS & Push' },
   };
   var info = titles[section] || { title: section, sub: '' };
   var titleEl = document.getElementById('content-title');
@@ -5782,6 +5848,8 @@ function renderCurrentPage() {
     el.innerHTML = renderBondsPage(currentSubTab);
   } else if (currentSection === 'cashflows') {
     el.innerHTML = renderCashflowCalendar();
+  } else if (currentSection === 'reminders') {
+    el.innerHTML = renderRemindersPage();
   } else {
     // Portfolio sections (FD, MF, etc.)
     el.innerHTML = renderPortfolioSection(currentSection, currentSubTab);
@@ -6664,6 +6732,173 @@ function calcPortCurrentValue(key, item) {
     case 'realestate': return item.currentValue || item.purchasePrice || 0;
     default: return item.currentValue || item.invested || 0;
   }
+}
+
+// ── Reminders Page ──
+function renderRemindersPage() {
+  var items = getReminderItems();
+  var totalAll = items.reduce(function(a,i){ return a + i.entries.reduce(function(b,e){return b+e.amount;},0); },0);
+  var urgentCount = items.filter(function(i){return i.urgent;}).length;
+
+  // Update badge
+  var badge = document.getElementById('nav-reminders-badge');
+  if (badge) { badge.style.display = urgentCount > 0 ? 'inline' : 'none'; badge.textContent = urgentCount; }
+
+  var html = '';
+
+  // ── Controls strip ──
+  html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:16px;">';
+  html += '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px;">';
+  html += '<span style="font-size:11px;font-weight:600;color:var(--text);margin-right:4px;">Filter:</span>';
+
+  // Period
+  html += '<div style="display:flex;flex-direction:column;gap:3px;">'
+    + '<label style="font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);">Time Period</label>'
+    + '<select id="reminder-period" onchange="onPeriodChange();refreshRemindersPage()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--r);font-family:var(--font-mono);font-size:11px;outline:none;">'
+    + '<option value="7">Next 7 days</option><option value="14">Next 14 days</option>'
+    + '<option value="30" selected>Next 30 days</option><option value="60">Next 60 days</option>'
+    + '<option value="90">Next 90 days</option><option value="180">Next 6 months</option>'
+    + '<option value="365">Next 1 year</option><option value="custom">Custom…</option>'
+    + '</select></div>';
+
+  html += '<div id="custom-days-wrap" style="display:none;flex-direction:column;gap:3px;">'
+    + '<label style="font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);">Custom Days</label>'
+    + '<input type="number" id="reminder-custom-days" value="45" min="1" style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--r);font-family:var(--font-mono);font-size:11px;outline:none;" oninput="refreshRemindersPage()">'
+    + '</div>';
+
+  html += '<div style="display:flex;flex-direction:column;gap:3px;">'
+    + '<label style="font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);">Urgent if within</label>'
+    + '<select id="reminder-urgency" onchange="refreshRemindersPage()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--r);font-family:var(--font-mono);font-size:11px;outline:none;">'
+    + '<option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option>'
+    + '</select></div>';
+
+  html += '<div style="display:flex;flex-direction:column;gap:3px;">'
+    + '<label style="font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);">Min Amount (₹)</label>'
+    + '<input type="number" id="reminder-min" value="0" min="0" style="width:110px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--r);font-family:var(--font-mono);font-size:11px;outline:none;" oninput="refreshRemindersPage()">'
+    + '</div>';
+  html += '</div>';
+
+  // ── Summary strip ──
+  html += '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--border);">';
+  html += '<span style="font-size:12px;color:var(--text);"><strong style="color:var(--accent2);">'+items.length+'</strong> payment'+(items.length!==1?'s':'')+' found</span>';
+  html += '<span style="font-size:12px;color:var(--text);">Total: <strong style="color:var(--green);">'+fmtCcy(totalAll)+'</strong></span>';
+  if (urgentCount > 0) html += '<span style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);color:var(--yellow);padding:3px 10px;border-radius:20px;font-size:10px;font-family:var(--font-mono);">⚠️ '+urgentCount+' URGENT</span>';
+  html += '</div>';
+  html += '</div>';
+
+  // ── Send Channels ──
+  html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:16px;">';
+  html += '<div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:12px;">📤 Send Reminders Via</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">';
+
+  // Email
+  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;">';
+  html += '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">📧 Email</div>';
+  html += '<input type="email" id="rp-email" placeholder="you@email.com" value="'+(notifSettings.email||'')+'" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none;margin-bottom:8px;">';
+  html += '<button onclick="sendReminderEmail()" style="width:100%;background:var(--accent2);color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-family:var(--font-mono);font-size:10px;font-weight:600;">Open in Mail App →</button>';
+  html += '</div>';
+
+  // WhatsApp
+  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;">';
+  html += '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">💬 WhatsApp</div>';
+  html += '<input type="tel" id="rp-wa" placeholder="919876543210" value="'+(notifSettings.wa||'')+'" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none;margin-bottom:4px;">';
+  html += '<div style="font-size:9px;color:var(--muted);font-family:var(--font-mono);margin-bottom:8px;">With country code, no spaces or +</div>';
+  html += '<button onclick="sendReminderWhatsApp()" style="width:100%;background:#25d366;color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-family:var(--font-mono);font-size:10px;font-weight:600;">Open in WhatsApp →</button>';
+  html += '</div>';
+
+  // SMS
+  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;">';
+  html += '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">📱 SMS</div>';
+  html += '<input type="tel" id="rp-sms" placeholder="+919876543210" value="'+(notifSettings.sms||'')+'" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none;margin-bottom:8px;">';
+  html += '<button onclick="sendReminderSMS()" style="width:100%;background:var(--accent2);color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-family:var(--font-mono);font-size:10px;font-weight:600;">Open SMS App →</button>';
+  html += '</div>';
+
+  // Push
+  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;">';
+  html += '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">🔔 Push Notification</div>';
+  var pushPerm = typeof Notification !== "undefined" ? Notification.permission : "unknown";
+  html += '<div style="font-size:10px;font-family:var(--font-mono);margin-bottom:8px;color:'+(pushPerm==="granted"?"var(--green)":pushPerm==="denied"?"var(--red)":"var(--yellow)")+';">'
+    + (pushPerm==="granted"?"✓ Enabled":pushPerm==="denied"?"✕ Blocked — allow in browser settings":"⬡ Not yet enabled")
+    + '</div>';
+  html += '<button onclick="enablePushNotifications()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px;cursor:pointer;font-family:var(--font-mono);font-size:10px;margin-bottom:6px;">'+(pushPerm==="granted"?"🧪 Send Test Notification":"🔔 Enable Push Notifications")+'</button>';
+  html += '</div>';
+
+  // Copy to clipboard
+  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;">';
+  html += '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">📋 Copy / Preview</div>';
+  html += '<button onclick="copyReminderText()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px;cursor:pointer;font-family:var(--font-mono);font-size:10px;margin-bottom:6px;">Copy Full Reminder Text</button>';
+  html += '<button onclick="showReminderPreview()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:7px;cursor:pointer;font-family:var(--font-mono);font-size:10px;">Preview Text</button>';
+  html += '</div>';
+
+  html += '</div></div>';
+
+  // ── Reminders list ──
+  if (!items.length) {
+    html += '<div class="empty-state"><div class="icon">🔔</div><p>No inflows found in the selected period.<br>Try increasing the time period or reducing the minimum amount.</p></div>';
+  } else {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;" id="reminders-list-page">';
+    items.forEach(function(item) {
+      var itemTotal = item.entries.reduce(function(a,e){return a+e.amount;},0);
+      html += '<div style="background:var(--surface);border:1px solid '+(item.urgent?'rgba(251,191,36,0.4)':'var(--border)')+';border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;'+(item.urgent?'background:rgba(251,191,36,0.03);':'')+'\">'
+        + '<div style="flex:1;min-width:200px;">'
+        + '<div style="font-size:12px;font-weight:600;font-family:var(--font-mono);color:var(--text);">📅 '+fmtDate(item.date)+'</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:3px;font-family:var(--font-mono);">'+item.entries.map(function(e){return e.instrument;}).join(' · ')+'</div>'
+        + (item.entries.length > 1 ? '<div style="font-size:9px;color:var(--muted);margin-top:2px;font-family:var(--font-mono);">'+item.entries.map(function(e){return e.instrument+': '+fmtCcy(e.amount);}).join(' | ')+'</div>' : '')
+        + '</div>'
+        + '<div style="text-align:right;">'
+        + '<div style="font-size:16px;font-weight:700;font-family:var(--font-mono);color:var(--green);">'+fmtCcy(itemTotal)+'</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--font-mono);">'+(item.daysUntil===0?'<strong style="color:var(--red);">TODAY</strong>':item.daysUntil===1?'<strong style="color:var(--yellow);">Tomorrow</strong>':'in '+item.daysUntil+' days')+'</div>'
+        + '</div>'
+        + (item.urgent ? '<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);color:var(--yellow);padding:3px 10px;border-radius:20px;font-size:9px;font-family:var(--font-mono);">⚠️ URGENT</div>' : '')
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  return html;
+}
+
+function refreshRemindersPage() {
+  var el = document.getElementById('page-content');
+  if (el && currentSection === 'reminders') el.innerHTML = renderRemindersPage();
+}
+
+// Reminder send functions (inline versions for the reminders page)
+function sendReminderEmail() {
+  var email = document.getElementById('rp-email')?.value?.trim() || '';
+  if (email) { notifSettings.email = email; localStorage.setItem('notif_settings', JSON.stringify(notifSettings)); }
+  var subject = encodeURIComponent('InvestOS — Upcoming Investment Inflows');
+  var body    = encodeURIComponent(buildReminderText(false));
+  window.open('mailto:' + encodeURIComponent(email) + '?subject=' + subject + '&body=' + body, '_blank');
+  toast('Opening email client…', 'info');
+}
+function sendReminderWhatsApp() {
+  var num = (document.getElementById('rp-wa')?.value || '').replace(/[^0-9]/g,'');
+  if (!num) { toast('Enter a WhatsApp number first', 'warn'); return; }
+  notifSettings.wa = num; localStorage.setItem('notif_settings', JSON.stringify(notifSettings));
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(buildReminderText(true)), '_blank');
+  toast('Opening WhatsApp…', 'info');
+}
+function sendReminderSMS() {
+  var num = (document.getElementById('rp-sms')?.value || '').trim();
+  if (!num) { toast('Enter a mobile number first', 'warn'); return; }
+  notifSettings.sms = num; localStorage.setItem('notif_settings', JSON.stringify(notifSettings));
+  var items = getReminderItems();
+  var total = items.reduce(function(a,i){return a+i.entries.reduce(function(b,e){return b+e.amount;},0);},0);
+  var msg = 'InvestOS: ' + items.length + ' inflow' + (items.length>1?'s':'') + ' upcoming. Total: ₹' + total.toLocaleString('en-IN',{maximumFractionDigits:0}) + '. See app for details.';
+  window.location.href = 'sms:' + num + (navigator.userAgent.match(/iPhone|iPad/i)?'&':'?') + 'body=' + encodeURIComponent(msg);
+  toast('Opening SMS app…', 'info');
+}
+function copyReminderText() {
+  var text = buildReminderText(false);
+  navigator.clipboard.writeText(text).then(function(){ toast('Copied to clipboard ✓', 'success'); }).catch(function(){ toast('Copy failed — select text manually', 'warn'); });
+}
+function showReminderPreview() {
+  var text = buildReminderText(false);
+  var el = document.getElementById('email-preview');
+  if (el) el.textContent = text;
+  document.getElementById('email-modal').classList.add('open');
+  switchNotifTab('preview');
 }
 
 // ===================== THEME TOGGLE =====================
