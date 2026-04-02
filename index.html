@@ -1238,7 +1238,7 @@ or
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label>Sale Price per Unit (₹) <span style="font-size:9px;color:var(--accent2);">auto-calc from XIRR, or enter manually</span></label>
+          <label>Dirty Price per Unit (₹) <span style="font-size:9px;color:var(--accent2);">= clean + accrued · auto from XIRR or enter manually</span></label>
           <input type="number" id="sell-price" step="0.01" placeholder="Auto-calculated from XIRR" oninput="onSellPriceManual()">
         </div>
         <div class="form-field">
@@ -2554,27 +2554,82 @@ function autoCalcRecordDate(id) {
 }
 
 function addCashflowRow(prefill) {
-  const id = cashflowRowCount++;
+  const id   = cashflowRowCount++;
   const wrap = document.getElementById('cashflow-rows');
+  const u    = parseInt(document.getElementById('f-units')?.value) || 1;
+
+  const prefillDate  = prefill ? new Date(prefill.date).toISOString().slice(0,10) : '';
+  const prefillRD    = prefill ? (prefill.recordDate||'') : '';
+  const prefillP     = prefill ? (prefill.principal||0) : '';
+  const prefillI     = prefill ? (prefill.interest||0) : '';
+  const prefillPU    = prefill && prefill.principal && u ? (prefill.principal/u).toFixed(4) : '';
+  const prefillIU    = prefill && prefill.interest  && u ? (prefill.interest/u).toFixed(4)  : '';
+  const prefillNotes = prefill ? (prefill.notes||'') : '';
+
   const div = document.createElement('div');
-  div.className = 'form-row';
-  div.style.gridTemplateColumns = '1fr 1fr 1fr 1fr 1fr auto';
-  div.id = `cfrow-${id}`;
-  const prefillDate    = prefill ? new Date(prefill.date).toISOString().slice(0,10) : '';
-  const prefillRD      = prefill ? (prefill.recordDate||'') : '';
-  const prefillP       = prefill ? (prefill.principal||0) : '';
-  const prefillI       = prefill ? (prefill.interest||0) : '';
-  const prefillNotes   = prefill ? (prefill.notes||'') : '';
-  div.innerHTML = `
-    <div class="form-field"><label>Payment Date *</label><input type="date" id="cf-date-${id}" value="${prefillDate}" oninput="autoCalcRecordDate(${id})"></div>
-    <div class="form-field"><label>Record Date <span style="color:var(--yellow);font-size:9px;">auto -15d</span></label><input type="date" id="cf-recdate-${id}" value="${prefillRD}"></div>
-    <div class="form-field"><label>Principal (– = invest)</label><input type="number" id="cf-principal-${id}" placeholder="0" step="0.01" value="${prefillP}"></div>
-    <div class="form-field"><label>Interest</label><input type="number" id="cf-interest-${id}" placeholder="0" step="0.01" value="${prefillI}"></div>
-    <div class="form-field"><label>Notes</label><input type="text" id="cf-notes-${id}" placeholder="optional" value="${prefillNotes}"></div>
-    <div class="form-field" style="justify-content:flex-end;padding-top:16px;">
-      <button class="btn btn-danger btn-sm" onclick="document.getElementById('cfrow-${id}').remove()">✕</button>
-    </div>`;
+  div.id = 'cfrow-' + id;
+  div.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;position:relative;';
+  div.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;">'
+    + '<div class="form-field"><label>Payment Date *</label>'
+    +   '<input type="date" id="cf-date-'+id+'" value="'+prefillDate+'" oninput="autoCalcRecordDate('+id+')">'
+    + '</div>'
+    + '<div class="form-field"><label>Record Date <span style="color:var(--yellow);font-size:9px;">auto</span></label>'
+    +   '<input type="date" id="cf-recdate-'+id+'" value="'+prefillRD+'">'
+    + '</div>'
+    + '<div class="form-field"><label>Principal/Unit (₹) <span style="color:var(--muted);font-size:9px;">–=invest</span></label>'
+    +   '<input type="number" id="cf-principalpu-'+id+'" placeholder="per unit" step="0.0001" value="'+prefillPU+'"'
+    +   ' oninput="cfSyncPU('+id+',\'p\')">'
+    + '</div>'
+    + '<div class="form-field"><label>Principal Total (₹)</label>'
+    +   '<input type="number" id="cf-principal-'+id+'" placeholder="total" step="0.01" value="'+prefillP+'"'
+    +   ' oninput="cfSyncTotal('+id+',\'p\')" style="background:var(--surface3);">'
+    + '</div>'
+    + '<div class="form-field"><label>Interest/Unit (₹)</label>'
+    +   '<input type="number" id="cf-interestpu-'+id+'" placeholder="per unit" step="0.0001" value="'+prefillIU+'"'
+    +   ' oninput="cfSyncPU('+id+',\'i\')">'
+    + '</div>'
+    + '<div class="form-field"><label>Interest Total (₹)</label>'
+    +   '<input type="number" id="cf-interest-'+id+'" placeholder="total" step="0.01" value="'+prefillI+'"'
+    +   ' oninput="cfSyncTotal('+id+',\'i\')" style="background:var(--surface3);">'
+    + '</div>'
+    + '<div class="form-field" style="justify-content:flex-end;padding-top:16px;">'
+    +   '<button class="btn btn-danger btn-sm" onclick="document.getElementById(\'cfrow-'+id+'\').remove()">✕</button>'
+    + '</div>'
+    + '</div>'
+    + '<div style="margin-top:6px;">'
+    + '<div class="form-field"><label>Notes</label>'
+    +   '<input type="text" id="cf-notes-'+id+'" placeholder="optional" value="'+prefillNotes+'" style="width:100%;">'
+    + '</div></div>';
   wrap.appendChild(div);
+}
+
+// Sync: per-unit → total
+function cfSyncPU(id, type) {
+  const u = parseInt(document.getElementById('f-units')?.value) || 1;
+  if (type === 'p') {
+    const pu = parseFloat(document.getElementById('cf-principalpu-'+id)?.value) || 0;
+    const tot = document.getElementById('cf-principal-'+id);
+    if (tot && pu !== 0) tot.value = (pu * u).toFixed(2);
+  } else {
+    const pu = parseFloat(document.getElementById('cf-interestpu-'+id)?.value) || 0;
+    const tot = document.getElementById('cf-interest-'+id);
+    if (tot && pu !== 0) tot.value = (pu * u).toFixed(2);
+  }
+}
+
+// Sync: total → per-unit
+function cfSyncTotal(id, type) {
+  const u = parseInt(document.getElementById('f-units')?.value) || 1;
+  if (type === 'p') {
+    const tot = parseFloat(document.getElementById('cf-principal-'+id)?.value) || 0;
+    const pu  = document.getElementById('cf-principalpu-'+id);
+    if (pu && tot !== 0) pu.value = (tot / u).toFixed(4);
+  } else {
+    const tot = parseFloat(document.getElementById('cf-interest-'+id)?.value) || 0;
+    const pu  = document.getElementById('cf-interestpu-'+id);
+    if (pu && tot !== 0) pu.value = (tot / u).toFixed(4);
+  }
 }
 
 // ===================== FILE UPLOAD =====================
@@ -5247,28 +5302,35 @@ function calcSellProceeds() {
     }
   }
 
-  // Sale price per unit: either auto-calc from XIRR (DCF) or manual
-  let salePricePerUnit = 0;
+  // ── Sale price (DCF at given XIRR) ──
+  // DCF is computed on PER-UNIT cashflows → result = dirty price per unit
+  // (DCF of all future cashflows naturally includes accrued, so result is dirty)
+  let dirtyPerUnit = 0;
+  let salePricePerUnit = 0;  // this will be the CLEAN price (dirty - accrued)
   const futureCFs = ins.cashflows.filter(cf => cf.date > sellDate && ((cf.principal||0)>0||(cf.interest||0)>0));
   if (!sellPriceManual && xirrPct > 0 && futureCFs.length > 0) {
-    // DCF at the given yield — clean price
     const r  = xirrPct / 100;
     const sd = new Date(sellDate);
-    let pv = 0;
+    let pvTotal = 0;
     futureCFs.forEach(cf => {
-      const yrs = (new Date(cf.date) - sd) / (365.25 * 86400000);
-      if (yrs > 0) pv += ((cf.principal||0)+(cf.interest||0)) / Math.pow(1+r, yrs);
+      // Use Actual/365 (matches Excel)
+      const yrs = (new Date(cf.date) - sd) / (365 * 86400000);
+      if (yrs > 0) {
+        // DCF on total cashflows (all units), then divide by units → per-unit value
+        const cfTotal = (cf.principal||0) + (cf.interest||0);
+        pvTotal += cfTotal / Math.pow(1+r, yrs);
+      }
     });
-    salePricePerUnit = pv / u;  // clean price per unit (DCF)
-    document.getElementById('sell-price').value = salePricePerUnit.toFixed(2);
+    dirtyPerUnit    = pvTotal / u;   // per-unit dirty price = DCF total / units
+    salePricePerUnit = dirtyPerUnit - accruedPerUnit;  // clean = dirty - accrued
+    document.getElementById('sell-price').value = dirtyPerUnit.toFixed(2);  // show dirty price in field
   } else {
-    salePricePerUnit = parseFloat(document.getElementById('sell-price').value) || 0;
+    // Manual entry: field holds dirty price per unit
+    dirtyPerUnit    = parseFloat(document.getElementById('sell-price').value) || 0;
+    salePricePerUnit = dirtyPerUnit - accruedPerUnit;
   }
 
-  if (!salePricePerUnit) { document.getElementById('sell-result').style.display = 'none'; return; }
-
-  // Dirty price = clean price + accrued interest (per unit)
-  const dirtyPerUnit   = salePricePerUnit + accruedPerUnit;
+  if (!dirtyPerUnit) { document.getElementById('sell-result').style.display = 'none'; return; }
   const totalProceeds  = dirtyPerUnit * units;
   const principalPart  = osPerUnit * units;  // O/S principal recovered
   const accruedTotal   = accruedPerUnit * units;
@@ -5302,12 +5364,15 @@ function calcSellProceeds() {
 
   const grid = document.getElementById('sell-summary-grid');
   grid.innerHTML =
-    sellMetric('Clean Price/Unit', fmtCcy(salePricePerUnit), 'var(--text)')
-    + sellMetric('Accrued Int/Unit', fmtCcy(accruedPerUnit), 'var(--accent2)')
+    sellMetric('O/S Principal/Unit', fmtCcy(osPerUnit), 'var(--muted)')
+    + sellMetric('Accrued Int/Unit (' + accruedDays + 'd)', fmtCcy(accruedPerUnit), 'var(--accent2)')
+    + sellMetric('Clean Price/Unit', fmtCcy(salePricePerUnit), 'var(--text)')
     + sellMetric('Dirty Price/Unit', fmtCcy(dirtyPerUnit), 'var(--yellow)')
-    + sellMetric('Total Proceeds', fmtCcy(totalProceeds), 'var(--text)')
-    + sellMetric('TDS on Accrued', fmtCcy(tdsonAccrued), 'var(--red)')
-    + sellMetric('Net Proceeds', fmtCcy(netProceeds), 'var(--green)')
+    + sellMetric('Total Consideration (' + units + ' units)', fmtCcy(totalProceeds), 'var(--text)')
+    + sellMetric('Principal Component', fmtCcy(principalPart), 'var(--text)')
+    + sellMetric('Accrued Int (Total)', fmtCcy(accruedTotal), 'var(--accent2)')
+    + sellMetric('TDS on Accrued @' + (tdr*100).toFixed(0) + '%', fmtCcy(tdsonAccrued), 'var(--red)')
+    + sellMetric('Net Settlement', fmtCcy(netProceeds), 'var(--green)')
     + sellMetric('Cost Basis', fmtCcy(costBasis), 'var(--muted)')
     + sellMetric('Past Int Recd (Net)', fmtCcy(pastIntNet), 'var(--green)')
     + sellMetric('Past Principal Recd', fmtCcy(pastPrin), 'var(--green)')
