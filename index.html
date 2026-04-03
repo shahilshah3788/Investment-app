@@ -1852,25 +1852,11 @@ function computeRows(ins) {
   let prevDate = null;
 
   // Pre-compute closing O/S after each row
-  // Rules:
-  // - Investment (p < 0): O/S increases by face value (NOT by purchase price)
-  //   Use u×fv as initial O/S, not the actual price paid
-  // - Regular principal repayment: O/S decreases
-  // - SALE-PRINCIPAL: O/S decreases (returning the outstanding)
-  // - SALE-CAPITAL-GAIN: does NOT change O/S (it's a gain, not principal return)
-  // - SALE-ACCRUED-INT: does not change O/S (it's interest)
   const closingOS = [];
-  // Find the initial investment row to set O/S = units × faceValue
-  const hasInvestment = sorted.some(cf => (cf.principal||0) < 0);
-  if (hasInvestment) outstanding = u * fv;  // start with face value
   sorted.forEach(cf => {
-    const p     = cf.principal || 0;
-    const notes = cf.notes || '';
-    const isSaleCapGain = notes.startsWith('SALE-CAPITAL-GAIN');
-    const isInvestment  = p < 0;
-    if (!isInvestment && !isSaleCapGain && p > 0) {
-      outstanding -= p;  // only real principal repayments reduce O/S
-    }
+    const p = cf.principal || 0;
+    if (p < 0) outstanding += Math.abs(p);   // investment: O/S increases
+    else if (p > 0) outstanding -= p;          // repayment: O/S decreases
     closingOS.push(Math.max(0, outstanding));
   });
 
@@ -1897,13 +1883,9 @@ function computeRows(ins) {
     const cfAfterTds = principal + netInt;   // principal passes through without TDS
     cumCF += cfAfterTds;
 
-    // Update running O/S (capital gain rows don't affect O/S)
-    const _isCapGain = (cf.notes||'').startsWith('SALE-CAPITAL-GAIN');
-    if (isInv) {
-      outstanding = u * fv;  // set to face value on investment
-    } else if (principal > 0 && !_isCapGain) {
-      outstanding -= principal;
-    }
+    // Update running O/S
+    if (isInv) outstanding += Math.abs(principal);
+    else if (principal > 0) outstanding -= principal;
 
     // Per-unit and per-₹100 (interest only for TDS-sensitive display)
     const intPerUnit = u > 0 ? interest / u : 0;
@@ -2599,19 +2581,19 @@ function addCashflowRow(prefill) {
     + '<div class="form-field"><label>Record Date <span style="color:var(--yellow);font-size:9px;">auto</span></label>'
     +   '<input type="date" id="cf-recdate-'+id+'" value="'+prefillRD+'">'
     + '</div>'
-    + '<div class="form-field"><label>Principal/Unit (₹)<span style="color:var(--muted);font-size:9px;"> –=inv</span></label>'
-    +   '<input type="number" id="cf-principalpu-'+id+'" placeholder="/unit" step="0.0001" value="'+prefillPU+'"'
+    + '<div class="form-field"><label>Principal/Unit (₹) <span style="color:var(--muted);font-size:9px;">–=invest</span></label>'
+    +   '<input type="number" id="cf-principalpu-'+id+'" placeholder="per unit" step="0.0001" value="'+prefillPU+'"'
     +   ' oninput="cfSyncPU('+id+',\'p\')">'
     + '</div>'
-    + '<div class="form-field"><label>Principal Total</label>'
+    + '<div class="form-field"><label>Principal Total (₹)</label>'
     +   '<input type="number" id="cf-principal-'+id+'" placeholder="total" step="0.01" value="'+prefillP+'"'
     +   ' oninput="cfSyncTotal('+id+',\'p\')" style="background:var(--surface3);">'
     + '</div>'
     + '<div class="form-field"><label>Interest/Unit (₹)</label>'
-    +   '<input type="number" id="cf-interestpu-'+id+'" placeholder="/unit" step="0.0001" value="'+prefillIU+'"'
+    +   '<input type="number" id="cf-interestpu-'+id+'" placeholder="per unit" step="0.0001" value="'+prefillIU+'"'
     +   ' oninput="cfSyncPU('+id+',\'i\')">'
     + '</div>'
-    + '<div class="form-field"><label>Interest Total</label>'
+    + '<div class="form-field"><label>Interest Total (₹)</label>'
     +   '<input type="number" id="cf-interest-'+id+'" placeholder="total" step="0.01" value="'+prefillI+'"'
     +   ' oninput="cfSyncTotal('+id+',\'i\')" style="background:var(--surface3);">'
     + '</div>'
@@ -4981,16 +4963,15 @@ function gv(item, key, def) { return item && item[key] !== undefined ? item[key]
 function buildFDForm(item) {
   return pfRow('1fr 1fr', [pf('name','FD Name *','text','e.g. SBI FD', gv(item,'name')), pf('bank','Bank / NBFC','text','e.g. SBI', gv(item,'bank'))])
     + pfRow('1fr 1fr 1fr 1fr', [
-        pf('principal','Principal Amount (₹) *','number','e.g. 1000000', gv(item,'principal')),
-        pf('rate','Interest Rate % p.a. *','number','e.g. 7.5', gv(item,'rate')),
+        pf('principal','Principal (₹) *','number','e.g. 500000', gv(item,'principal')),
+        pf('rate','Interest Rate % *','number','e.g. 7.5', gv(item,'rate')),
         pf('startDate','Start Date *','date','', gv(item,'startDate')),
         pf('maturityDate','Maturity Date *','date','', gv(item,'maturityDate'))
       ])
-    + pfRow('1fr 1fr 1fr 1fr', [
-        ps('compounding','Compounding (for maturity calc)',['Monthly','Quarterly','Half-Yearly','Annual','Simple'], gv(item,'compounding','Quarterly')),
-        ps('interestFrequency','Interest Payment Frequency',['Monthly','Quarterly','Half-Yearly','Annual','On Maturity','Simple Interest - Quarterly','Simple Interest - Monthly'], gv(item,'interestFrequency','Quarterly')),
+    + pfRow('1fr 1fr 1fr', [
+        ps('compounding','Compounding',['Monthly','Quarterly','Half-Yearly','Annual','Simple'], gv(item,'compounding','Quarterly')),
         pf('tdsRate','TDS Rate %','number','10', gv(item,'tdsRate',10)),
-        pf('interestReceived','Interest Received So Far (₹)','number','0', gv(item,'interestReceived',0))
+        pf('interestReceived','Interest Received (₹)','number','0', gv(item,'interestReceived',0))
       ])
     + pfRow('1fr', [pf('notes','Notes','text','', gv(item,'notes'))]);
 }
@@ -5229,7 +5210,7 @@ function collectPortForm(key) {
 
   // Key-specific fields
   const fieldMap = {
-    fd:        ['name','bank','principal','rate','startDate','maturityDate','compounding','interestFrequency','tdsRate','interestReceived','notes'],
+    fd:        ['name','bank','principal','rate','startDate','maturityDate','compounding','tdsRate','interestReceived','notes'],
     rd:        ['name','bank','monthlyAmount','rate','tenureMonths','startDate','maturityDate','notes'],
     mf:        ['name','fundHouse','category','folio','units','avgNAV','currentNAV','firstDate','invested','notes'],
     equity:    ['name','ticker','exchange','shares','avgBuyPrice','currentPrice','sector','buyDate','dividendsReceived','notes'],
@@ -6332,10 +6313,6 @@ function renderPortfolioSection(section, subTab) {
     return html2;
   }
 
-  if (subTab === 'cashflows') {
-    return renderPortfolioSectionCashflows(section, items, label);
-  }
-
   return '<div style="color:var(--muted);padding:20px;font-size:12px;">Select a view from the tabs above.</div>';
 }
 
@@ -6922,177 +6899,6 @@ function showReminderPreview() {
   if (el) el.textContent = text;
   document.getElementById('email-modal').classList.add('open');
   switchNotifTab('preview');
-}
-
-// ── FD / RD Projected Cashflow Generator ──
-function renderPortfolioSectionCashflows(section, items, label) {
-  if (!items.length) {
-    return '<div class="empty-state"><div class="icon">📊</div><p>No ' + label + ' entries yet. Add one to see projected cashflows.</p></div>';
-  }
-
-  var today = new Date().toISOString().slice(0,10);
-  var html  = '';
-
-  items.forEach(function(item) {
-    html += '<div class="bond-card" style="margin-bottom:16px;">';
-    html += '<div class="bond-card-header" style="display:flex;justify-content:space-between;align-items:center;">';
-    html += '<span>' + (item.name||'—') + (item.bank ? ' — ' + item.bank : '') + '</span>';
-
-    if (section === 'fd') {
-      var matAmt = calcFDMaturity(item);
-      var gain   = matAmt - (item.principal||0);
-      html += '<span style="font-family:var(--font-mono);font-size:10px;color:var(--green);">Maturity: ' + fmtCcy(matAmt) + ' &nbsp;|&nbsp; Interest: ' + fmtCcy(gain) + '</span>';
-    }
-    html += '</div>';
-
-    // Generate projected cashflow schedule
-    var rows = [];
-    if (section === 'fd' && item.startDate && item.maturityDate && item.rate && item.principal) {
-      rows = generateFDCashflows(item);
-    } else if (section === 'rd' && item.startDate && item.tenureMonths && item.rate && item.monthlyAmount) {
-      rows = generateRDCashflows(item);
-    } else {
-      html += '<div style="padding:12px 16px;color:var(--muted);font-size:11px;">Set Start Date, Rate and Amount to see projected cashflows.</div>';
-      html += '</div>';
-      return;
-    }
-
-    if (!rows.length) {
-      html += '<div style="padding:12px 16px;color:var(--muted);font-size:11px;">No cashflows to display.</div>';
-      html += '</div>';
-      return;
-    }
-
-    // Totals
-    var totalInt  = rows.reduce(function(a,r){return a+(r.interest||0);},0);
-    var totalTDS  = rows.reduce(function(a,r){return a+(r.tds||0);},0);
-    var totalNet  = rows.reduce(function(a,r){return a+(r.netCF||0);},0);
-
-    html += '<div style="padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;font-size:10px;font-family:var(--font-mono);">';
-    html += '<span><span style="color:var(--muted);">Principal</span> <strong style="color:var(--accent);">' + fmtCcy(item.principal||0) + '</strong></span>';
-    html += '<span><span style="color:var(--muted);">Gross Interest</span> <strong>' + fmtCcy(totalInt) + '</strong></span>';
-    html += '<span><span style="color:var(--muted);">TDS @' + (item.tdsRate||10) + '%</span> <strong style="color:var(--red);">' + fmtCcy(totalTDS) + '</strong></span>';
-    html += '<span><span style="color:var(--muted);">Net Interest</span> <strong style="color:var(--green);">' + fmtCcy(totalNet - (item.principal||0)) + '</strong></span>';
-    html += '<span><span style="color:var(--muted);">Frequency</span> <strong>' + (item.interestFrequency||item.compounding||'Quarterly') + '</strong></span>';
-    html += '</div>';
-
-    html += '<div class="table-wrap"><table>';
-    html += '<thead><tr style="font-size:8px;">'
-      + '<th>Date</th><th>Type</th><th>Days</th>'
-      + '<th>O/S Principal (₹)</th><th>Principal (₹)</th>'
-      + '<th>Gross Interest (₹)</th><th style="color:var(--red);">TDS</th>'
-      + '<th>Net Cashflow (₹)</th><th>Status</th>'
-      + '</tr></thead><tbody>';
-
-    var cumCF = 0;
-    rows.forEach(function(r) {
-      cumCF += r.netCF || 0;
-      var past    = r.date <= today;
-      var rowBg   = r.type === 'Investment' ? 'background:rgba(251,113,133,0.04);' : r.type === 'Maturity' ? 'background:rgba(52,211,153,0.04);' : '';
-      var rowCls  = past && r.type !== 'Investment' ? 'row-past' : '';
-      var pColor  = r.type === 'Investment' ? 'var(--red)' : (r.principal > 0 ? 'var(--green)' : 'var(--muted)');
-
-      html += '<tr class="' + rowCls + '" style="' + rowBg + '">'
-        + '<td class="date-col">' + fmtDate(new Date(r.date)) + '</td>'
-        + '<td style="font-size:9px;color:var(--muted);">' + r.type + '</td>'
-        + '<td style="text-align:right;font-size:10px;color:var(--muted);">' + (r.days||'—') + '</td>'
-        + '<td style="text-align:right;font-size:10px;color:var(--muted);">' + (r.osBefore > 0 ? fmtCcy(r.osBefore) : '—') + '</td>'
-        + '<td style="text-align:right;font-size:11px;color:' + pColor + ';">' + (r.principal ? fmtCcy(r.principal) : '—') + '</td>'
-        + '<td style="text-align:right;font-size:11px;color:var(--green);">' + (r.interest > 0 ? fmtCcy(r.interest) : '—') + '</td>'
-        + '<td style="text-align:right;font-size:10px;color:var(--red);">' + (r.tds > 0 ? fmtCcy(r.tds) : '—') + '</td>'
-        + '<td style="text-align:right;font-size:11px;font-weight:600;color:' + (r.netCF > 0 ? 'var(--green)' : r.netCF < 0 ? 'var(--red)' : 'var(--muted)') + ';">' + fmtCcy(r.netCF) + '</td>'
-        + '<td style="font-size:9px;text-align:center;">' + (r.type==='Investment'?'<span style="color:var(--red);">📥 Invested</span>':past?'<span style="color:var(--muted);">✓ Paid</span>':'<span style="color:var(--green);">⏳ Upcoming</span>') + '</td>'
-        + '</tr>';
-    });
-    html += '</tbody></table></div>';
-    html += '</div>';
-  });
-
-  return html;
-}
-
-function generateFDCashflows(item) {
-  var rows   = [];
-  var p      = item.principal || 0;
-  var rate   = (item.rate || 0) / 100;
-  var tdr    = (item.tdsRate  || 10) / 100;
-  var freq   = item.interestFrequency || item.compounding || 'Quarterly';
-  var startD = new Date(item.startDate);
-  var matD   = new Date(item.maturityDate);
-  var today  = new Date();
-
-  // Investment row
-  rows.push({ date: item.startDate, type: 'Investment', principal: -p, interest: 0, tds: 0, netCF: -p, osBefore: 0, days: 0 });
-
-  var freqMonths = { 'Monthly':1, 'Quarterly':3, 'Half-Yearly':6, 'Annual':12,
-    'Simple Interest - Monthly':1, 'Simple Interest - Quarterly':3, 'On Maturity':0 };
-  var fMonths = freqMonths[freq];
-  var isSimple = freq.startsWith('Simple') || freq === 'On Maturity' || freq === 'Simple';
-
-  if (fMonths === 0 || isSimple) {
-    // On maturity / simple: single interest + principal at end
-    var totalYears = (matD - startD) / (365.25 * 86400000);
-    var totalInt   = isSimple ? p * rate * totalYears : calcFDMaturity(item) - p;
-    var tds        = totalInt * tdr;
-    var netInt     = totalInt - tds;
-    rows.push({ date: item.maturityDate, type: 'Maturity', principal: p, interest: totalInt, tds: tds, netCF: p + netInt, osBefore: p, days: Math.round((matD - startD) / 86400000) });
-  } else {
-    // Periodic interest payments + principal at maturity
-    var curD = new Date(startD);
-    var prevD = new Date(startD);
-    var period = 1;
-    while (true) {
-      var nextD = new Date(curD);
-      nextD.setMonth(nextD.getMonth() + fMonths);
-      if (nextD > matD) nextD = new Date(matD);
-      var days    = Math.round((nextD - prevD) / 86400000);
-      // Actual/365 interest = principal × rate × days / 365
-      var grossInt = p * rate * days / 365;
-      var tds      = grossInt * tdr;
-      var netInt   = grossInt - tds;
-      var isLast   = nextD >= matD;
-      var principal= isLast ? p : 0;
-      var netCF    = netInt + principal;
-      rows.push({
-        date: nextD.toISOString().slice(0,10),
-        type: isLast ? 'Maturity' : 'Interest',
-        principal: principal, interest: grossInt, tds: tds, netCF: netCF,
-        osBefore: p, days: days
-      });
-      prevD = new Date(nextD);
-      curD  = new Date(nextD);
-      if (isLast) break;
-      period++;
-      if (period > 120) break; // safety
-    }
-  }
-  return rows;
-}
-
-function generateRDCashflows(item) {
-  var rows   = [];
-  var monthly = item.monthlyAmount || 0;
-  var rate    = (item.rate || 0) / 100;
-  var tenure  = item.tenureMonths || 0;
-  var startD  = new Date(item.startDate);
-
-  // Monthly investment rows + maturity
-  var totalDeposited = 0;
-  for (var m = 0; m < tenure; m++) {
-    var d = new Date(startD);
-    d.setMonth(d.getMonth() + m);
-    totalDeposited += monthly;
-    rows.push({ date: d.toISOString().slice(0,10), type: m===0?'Investment':'Deposit', principal: -monthly, interest: 0, tds: 0, netCF: -monthly, osBefore: 0, days: 30 });
-  }
-  // Maturity
-  var matAmt = calcRDMaturity(item);
-  var interest = matAmt - totalDeposited;
-  var tdr = (item.tdsRate||10)/100;
-  var tds = interest * tdr;
-  var matD = new Date(startD);
-  matD.setMonth(matD.getMonth() + tenure);
-  rows.push({ date: matD.toISOString().slice(0,10), type: 'Maturity', principal: totalDeposited, interest: interest, tds: tds, netCF: totalDeposited + interest - tds, osBefore: totalDeposited, days: 0 });
-  return rows;
 }
 
 // ===================== THEME TOGGLE =====================
