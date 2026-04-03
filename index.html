@@ -3431,7 +3431,20 @@ function renderInstrumentCashflowTable(ins, viewMode, cfScope) {
 
   var allRows   = computeRows(ins);
   var rows_data = (cfScope === 'investment' && purchaseD)
-    ? allRows.filter(function(r){ return r.dateStr >= purchaseD; })
+    ? allRows.filter(function(r) {
+        if (r.isInv) return true;  // always include the investment outflow row
+        // Exclude if record date exists and investor wasn't on register
+        // Record date < purchase date → investor missed this payment
+        if (r.recordDate) {
+          var rd = r.recordDate.slice(0,10);  // YYYY-MM-DD
+          if (rd < purchaseD) return false;   // record date before purchase → skip
+        } else {
+          // No record date stored: fall back to payment date check
+          // Exclude only if payment date is strictly before purchase date
+          if (r.dateStr < purchaseD) return false;
+        }
+        return true;
+      })
     : allRows;
 
   var tGI=0,tTDS=0,tNI=0,tPOut=0,tGCF=0,tNCF=0;
