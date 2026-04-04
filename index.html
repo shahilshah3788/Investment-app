@@ -6220,7 +6220,7 @@ function renderBondsDashboard() {
       var rating = ins.creditRating && ins.creditRating.rating ? ins.creditRating.rating : '—';
       var ratingCls = getRatingClass(rating);
       var cardInsId = ins.id;
-      html += '<div class="bond-card" style="cursor:pointer;" onclick="goToInstrument(\'' + cardInsId + '\')">' '
+      html += '<div class="bond-card" style="cursor:pointer;" onclick="goToInstrument(\'' + cardInsId + '\')">'
         + '<div class="bond-card-header" style="display:flex;align-items:center;justify-content:space-between;">'
         + '<span>'+ins.name+'</span>'
         + '<span class="rating-badge '+ratingCls+'">'+rating+'</span>'
