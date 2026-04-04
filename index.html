@@ -6473,7 +6473,7 @@ function renderPortfolioSection(section, subTab) {
         var ival = calcPortCurrentValue(section, item) || iinv;
         var igain= ival-iinv;
         var iret = iinv>0?(igain/iinv)*100:0;
-        html += '<tr style="border-bottom:1px solid rgba(34,40,64,0.4);cursor:pointer;" onclick="switchSubTab('instruments')">'
+        html += '<tr style="border-bottom:1px solid rgba(34,40,64,0.4);cursor:pointer;" onclick="switchSubTab(\'instruments\')">'
           + '<td style="padding:7px 12px;">' + (item.name||'—') + '</td>'
           + '<td style="padding:7px 12px;text-align:right;color:var(--accent);">₹'+iinv.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
           + '<td style="padding:7px 12px;text-align:right;color:'+(ival>=iinv?'var(--green)':'var(--red)')+';">₹'+ival.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
