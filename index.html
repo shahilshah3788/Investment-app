@@ -718,7 +718,7 @@
   <div class="subnav" id="subnav" style="display:none;">
     <button class="subnav-tab active" id="subtab-dashboard" onclick="switchSubTab('dashboard')">Dashboard</button>
     <button class="subnav-tab" id="subtab-summary" onclick="switchSubTab('summary')">Summary</button>
-    <button class="subnav-tab" id="subtab-instruments" onclick="switchSubTab(\'instruments\')">Instruments</button>
+    <button class="subnav-tab" id="subtab-instruments" onclick="switchSubTab('instruments')">Instruments</button>
     <button class="subnav-tab" id="subtab-cashflows" onclick="switchSubTab('cashflows')">Cashflows</button>
   </div>
 
@@ -2814,20 +2814,26 @@ function saveInstrument() {
   const isinStartDate   = document.getElementById('f-isin-start-date')?.value || '';  // separate from purchase date
   const accruedPaid   = parseFloat(document.getElementById('f-accrued-paid').value) || 0;
   // Auto-calculate XIRR from cashflows (Newton-Raphson)
-  // Auto-calculate XIRR from the cashflows on net basis (post-TDS)
-  // Use Actual/365 and our shared solveXIRR solver
-  let computedXirr = xirr; // fallback to manual entry
+  // Auto-calculate XIRR/YTM at purchase — exclude SALE rows (they are post-purchase adjustments)
+  // This gives the yield the investor locked in at their purchase price, pre-TDS
+  // Realised XIRR (post-sale) is computed live in computeNetXIRR() shown in the banner
+  let computedXirr = xirr; // fallback to manual entry if no investment row
   if (cashflows.length >= 2) {
-    const hasCost = cashflows.some(cf => (cf.principal||0) < 0);
-    if (hasCost) {
-      const xirrInput = cashflows
+    // Only use original scheduled cashflows, not sale adjustments
+    const scheduleCFs = cashflows.filter(cf => {
+      const n = cf.notes || '';
+      return !n.startsWith('SALE-') && !n.startsWith('SALE:');
+    });
+    const hasCost = scheduleCFs.some(cf => (cf.principal||0) < 0);
+    if (hasCost && scheduleCFs.length >= 2) {
+      const xirrInput = scheduleCFs
         .filter(cf => ((cf.principal||0) !== 0) || ((cf.interest||0) !== 0))
         .map(cf => {
-          var tds = (cf.interest||0) > 0 ? (cf.interest||0) * tdsRate : 0;
-          return { date: new Date(cf.date), amount: (cf.principal||0) + (cf.interest||0) - tds };
+          // Gross basis for stored XIRR (mirrors market convention for YTM)
+          return { date: new Date(cf.date), amount: (cf.principal||0) + (cf.interest||0) };
         }).filter(cf => cf.amount !== 0);
       const r = solveXIRR(xirrInput);
-      if (r > -0.99 && r < 5) computedXirr = r;  // >500% XIRR is nonsensical
+      if (r > -0.99 && r < 5) computedXirr = r;
     }
   }
 
@@ -2870,6 +2876,24 @@ function switchTab(tab, el) {
 }
 
 function selectInstrument(id) { activeInstrumentId = activeInstrumentId===String(id) ? null : String(id); refresh(); }
+
+function goToInstrument(id) {
+  currentSubTab = 'instruments';
+  if (currentSection !== 'bonds') {
+    navTo('bonds');
+  }
+  setTimeout(function() {
+    switchSubTab('instruments');
+    setTimeout(function() {
+      var el = document.getElementById('ins-panel-' + id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.style.boxShadow = '0 0 0 2px var(--accent2)';
+        setTimeout(function() { el.style.boxShadow = ''; }, 1800);
+      }
+    }, 80);
+  }, 50);
+}
 
 function removeInstrument(id) {
   const ins = instruments.find(i => String(i.id) === String(id));
@@ -3534,7 +3558,8 @@ function renderInstrumentCashflowTable(ins, viewMode, cfScope) {
       :isSCG?'<span style="color:'+(pr>=0?'var(--green)':'var(--red)')+';font-size:9px;font-weight:600;">'+(pr>=0?'📈':'📉')+' Cap '+(pr>=0?'Gain':'Loss')+'</span>'
       :r.dateStr<=todayStr?'<span style="color:var(--muted);font-size:9px;">✓ Paid</span>'
       :'<span style="color:var(--green);font-size:9px;">⏳ Upcoming</span>';
-    var uLabel = r.scaledDown ? '<br><span style="font-size:8px;color:var(--yellow);" title="Scaled for '+r.effectiveUnits+' units after partial sale">⚠ '+r.effectiveUnits+'u</span>' : '';
+    var u_eff = r.effectiveUnits || u;  // effective units at this payment date
+    var uLabel = r.scaledDown ? '<br><span style="font-size:8px;color:var(--yellow);" title="Scaled for '+u_eff+' units after partial sale">⚠ '+u_eff+'u</span>' : '';
     var pu=viewMode==='overall'
       ?((int>0?'₹'+(ir/u_eff).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+uLabel:'')+(pr>0&&!isInv&&!notes.startsWith('SALE')?(int>0?'<br>':'')+'<span style="font-size:9px;color:var(--muted);">p:₹'+(pr/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':'')+(isInv?'<span style="font-size:9px;color:var(--muted);">₹'+(Math.abs(pr)/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'/u</span>':''))||'—'
       :'<span style="font-size:9px;color:var(--muted);">÷'+u+'</span>';
@@ -6195,7 +6220,7 @@ function renderBondsDashboard() {
       var rating = ins.creditRating && ins.creditRating.rating ? ins.creditRating.rating : '—';
       var ratingCls = getRatingClass(rating);
       var cardInsId = ins.id;
-      html += '<div class="bond-card" style="cursor:pointer;" onclick="(function(id){currentSubTab=\'instruments\';navTo(\'bonds\');setTimeout(function(){switchSubTab(\'instruments\');var el=document.getElementById(\'ins-panel-\'+id);if(el){el.scrollIntoView({behavior:\'smooth\',block:\'start\'});el.style.boxShadow=\'0 0 0 2px var(--accent2)\';setTimeout(function(){el.style.boxShadow=\'\';},1800);}},120);})(\''+cardInsId+'\');">'
+      html += '<div class="bond-card" style="cursor:pointer;" onclick="goToInstrument(\'' + cardInsId + '\')">' '
         + '<div class="bond-card-header" style="display:flex;align-items:center;justify-content:space-between;">'
         + '<span>'+ins.name+'</span>'
         + '<span class="rating-badge '+ratingCls+'">'+rating+'</span>'
@@ -6448,7 +6473,7 @@ function renderPortfolioSection(section, subTab) {
         var ival = calcPortCurrentValue(section, item) || iinv;
         var igain= ival-iinv;
         var iret = iinv>0?(igain/iinv)*100:0;
-        html += '<tr style="border-bottom:1px solid rgba(34,40,64,0.4);cursor:pointer;" onclick="switchSubTab(\'instruments\')">'
+        html += '<tr style="border-bottom:1px solid rgba(34,40,64,0.4);cursor:pointer;" onclick="switchSubTab('instruments')">'
           + '<td style="padding:7px 12px;">' + (item.name||'—') + '</td>'
           + '<td style="padding:7px 12px;text-align:right;color:var(--accent);">₹'+iinv.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
           + '<td style="padding:7px 12px;text-align:right;color:'+(ival>=iinv?'var(--green)':'var(--red)')+';">₹'+ival.toLocaleString('en-IN',{maximumFractionDigits:0})+'</td>'
