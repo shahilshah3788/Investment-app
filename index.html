@@ -831,8 +831,8 @@
           <button type="button" class="btn btn-ghost btn-sm" onclick="autocalcPurchasePrice()" title="Calculate PV from cashflows at the yield below" style="white-space:nowrap;font-size:9px;color:var(--accent2);border-color:rgba(91,141,238,0.3);">📐 Calc PV</button>
         </div>
         <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
-          <span style="font-size:9px;color:var(--muted);">At yield %:</span>
-          <input type="number" id="f-pv-yield" value="12" step="0.01" style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-family:var(--font-mono);font-size:11px;outline:none;">
+          <span style="font-size:9px;color:var(--muted);">At XIRR/YTM %<br><span style="color:var(--accent2);font-size:8px;">Enter required yield</span></span>
+          <input type="number" id="f-pv-yield" value="12" step="0.01" style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-family:var(--font-mono);font-size:11px;outline:none;" title="Enter the XIRR or YTM at which to discount future cashflows for PV calculation">
           <span style="font-size:9px;color:var(--muted);" id="f-pv-calc-result"></span>
         </div>
       </div>
@@ -1801,6 +1801,16 @@ function initDemo() {
 // ===================== HELPERS =====================
 function getToday() { return new Date('2026-03-17'); }
 
+// Clean display note for sale rows
+function displayNote(notes) {
+  if (!notes || notes === '—') return '—';
+  return notes
+    .replace(/^SALE-PRINCIPAL:/,    '💰 Sale — Principal')
+    .replace(/^SALE-ACCRUED-INT:/,  '💰 Sale — Accrued Int')
+    .replace(/^SALE-CAPITAL-GAIN:/, (notes.includes('Loss') ? '📉 Sale — Cap Loss' : '📈 Sale — Cap Gain'))
+    .replace(/^SALE:/,              '💰 Sale');
+}
+
 function fmtDate(d) {
   if (!d) return '—';
   if (!(d instanceof Date) || isNaN(d)) d = new Date(d);
@@ -1844,82 +1854,100 @@ function fmtCcy(n) { return '₹' + Math.abs(n).toLocaleString('en-IN', { minimu
 function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
 
 function computeRows(ins) {
-  const u   = ins.units     || 1;
-  const fv  = ins.faceValue || 1000;
-  const tdr = ins.tdsRate   || 0.10;
-  const totalFace = u * fv;
+  const origUnits = ins.units || 1;   // CURRENT units held (after all sales)
+  const fv        = ins.faceValue || 1000;
+  const tdr       = ins.tdsRate   || 0.10;
 
   // Sort cashflows chronologically
   const sorted = [...ins.cashflows].sort((a, b) => a.date.localeCompare(b.date));
 
-  // ── Pass 1: Build running outstanding principal ──
-  // Outstanding is the CLOSING balance AFTER each payment date
-  // Interest is charged on the O/S at the START of each period (closing of previous)
-  let outstanding = 0;   // closing balance after each row
-  let cumCF = 0;
-  let prevDate = null;
+  // ── Determine original unit count at allotment ──
+  // Walk backwards: add back any units sold to get the starting count
+  let unitsSoldTotal = 0;
+  sorted.forEach(cf => {
+    const notes = cf.notes || '';
+    if (notes.startsWith('SALE-PRINCIPAL') && (cf.principal||0) > 0) {
+      // Units sold = principal recovered / face value per unit
+      unitsSoldTotal += Math.round((cf.principal||0) / fv);
+    }
+  });
+  const originalUnits = origUnits + unitsSoldTotal;  // units at allotment
 
-  // Pre-compute closing O/S after each row
-  // Rules:
-  // - Investment (p < 0): O/S increases by face value (NOT by purchase price)
-  //   Use u×fv as initial O/S, not the actual price paid
-  // - Regular principal repayment: O/S decreases
-  // - SALE-PRINCIPAL: O/S decreases (returning the outstanding)
-  // - SALE-CAPITAL-GAIN: does NOT change O/S (it's a gain, not principal return)
-  // - SALE-ACCRUED-INT: does not change O/S (it's interest)
-  const closingOS = [];
-  // Find the initial investment row to set O/S = units × faceValue
-  const hasInvestment = sorted.some(cf => (cf.principal||0) < 0);
-  if (hasInvestment) outstanding = u * fv;  // start with face value
+  // ── Pass 1: Build running O/S and effective unit count at each row ──
+  // effectiveUnits = how many units the investor holds at this point in time
+  let outstanding    = originalUnits * fv;  // starts at full allotment OS
+  let effectiveUnits = originalUnits;
+  const closingOS    = [];
+  const closingUnits = [];
+
   sorted.forEach(cf => {
     const p     = cf.principal || 0;
     const notes = cf.notes || '';
     const isSaleCapGain = notes.startsWith('SALE-CAPITAL-GAIN');
+    const isSalePrin    = notes.startsWith('SALE-PRINCIPAL');
     const isInvestment  = p < 0;
+
     if (!isInvestment && !isSaleCapGain && p > 0) {
-      outstanding -= p;  // only real principal repayments reduce O/S
+      outstanding -= p;   // scheduled repayments + sale principal reduce OS
+    }
+    if (isSalePrin && p > 0) {
+      // Units sold in this transaction
+      const unitsSold = Math.round(p / fv);
+      effectiveUnits  = Math.max(0, effectiveUnits - unitsSold);
     }
     closingOS.push(Math.max(0, outstanding));
+    closingUnits.push(effectiveUnits);
   });
 
-  // Reset for pass 2
-  outstanding = 0;
+  // ── Pass 2: Build result rows ──
+  let outstanding2    = originalUnits * fv;
+  let effectiveUnits2 = originalUnits;
+  let cumCF           = 0;
+  let prevDate        = null;
 
   return sorted.map((cf, i) => {
     const d         = new Date(cf.date);
-    const principal = cf.principal || 0;
-    const interest  = cf.interest  || 0;
-    const isInv     = principal < 0;
+    const notes     = cf.notes || '';
+    const isInv     = (cf.principal||0) < 0;
+    const isSalePrin    = notes.startsWith('SALE-PRINCIPAL');
+    const isSaleCapGain = notes.startsWith('SALE-CAPITAL-GAIN');
+    const isSaleAccInt  = notes.startsWith('SALE-ACCRUED-INT');
+    const isSaleRow     = isSalePrin || isSaleCapGain || isSaleAccInt;
 
-    // O/S at START of this period = closing O/S of previous period
-    // This is what interest is charged on
-    const osBefore = i === 0 ? 0 : closingOS[i - 1];
+    // Units in effect BEFORE this row (closing of previous)
+    const uBefore = i === 0 ? originalUnits : closingUnits[i - 1];
 
-    // Days since previous cashflow (Actual/365)
-    const days = prevDate && !isInv ? Math.round((d - prevDate) / 86400000) : 0;
+    // For scheduled cashflows (not sale rows, not investment):
+    // scale the stored amount to match effective units at that time
+    // Stored cashflows were entered for originalUnits; after partial sale, scale down
+    let principal = cf.principal || 0;
+    let interest  = cf.interest  || 0;
 
-    // TDS applies ONLY to interest, NOT to principal or sale proceeds
-    const tds    = interest > 0 ? interest * tdr : 0;
-    const netInt = interest - tds;
-    const cashflow   = principal + interest;
-    const cfAfterTds = principal + netInt;   // principal passes through without TDS
-    cumCF += cfAfterTds;
-
-    // Update running O/S (capital gain rows don't affect O/S)
-    const _isCapGain = (cf.notes||'').startsWith('SALE-CAPITAL-GAIN');
-    if (isInv) {
-      outstanding = u * fv;  // set to face value on investment
-    } else if (principal > 0 && !_isCapGain) {
-      outstanding -= principal;
+    if (!isInv && !isSaleRow && originalUnits > 0 && uBefore !== originalUnits) {
+      // Scale scheduled cashflows to effective units
+      const scale = uBefore / originalUnits;
+      principal   = principal * scale;
+      interest    = interest  * scale;
     }
 
-    // Per-unit and per-₹100 (interest only for TDS-sensitive display)
-    const intPerUnit = u > 0 ? interest / u : 0;
-    const pPerUnit   = u > 0 ? (principal !== 0 ? Math.abs(principal) / u : 0) : 0;
-    const cfPerUnit  = u > 0 ? cfAfterTds / u : 0;
+    const osBefore = i === 0 ? 0 : closingOS[i - 1];
+    const days     = prevDate && !isInv ? Math.round((d - prevDate) / 86400000) : 0;
+
+    // TDS: on interest only, and only for non-sale rows (sale proceeds have no TDS)
+    const tds      = (interest > 0 && !isSaleRow) ? interest * tdr : 0;
+    const netInt   = interest - tds;
+    const cashflow    = principal + interest;
+    const cfAfterTds  = principal + netInt;
+    cumCF += cfAfterTds;
+
+    // Per-unit values (relative to effective units at this point)
+    const u_eff      = uBefore > 0 ? uBefore : 1;
+    const intPerUnit = interest / u_eff;
+    const pPerUnit   = (principal !== 0 ? Math.abs(principal) / u_eff : 0);
+    const cfPerUnit  = cfAfterTds / u_eff;
     const intPer100  = osBefore > 0 ? (interest / osBefore) * 100 : 0;
-    const pPer100    = totalFace > 0 ? (Math.abs(principal) / totalFace) * 100 : 0;
-    const netPer100  = totalFace > 0 ? (cfAfterTds / totalFace) * 100 : 0;
+    const pPer100    = (originalUnits * fv) > 0 ? (Math.abs(principal) / (originalUnits * fv)) * 100 : 0;
+    const netPer100  = (originalUnits * fv) > 0 ? (cfAfterTds / (originalUnits * fv)) * 100 : 0;
 
     if (!isInv) prevDate = d;
 
@@ -1930,8 +1958,10 @@ function computeRows(ins) {
       intPerUnit, pPerUnit, cfPerUnit,
       intPer100, pPer100, netPer100,
       recordDate: cf.recordDate || '',
-      notes: cf.notes || '',
-      isInv
+      notes,
+      isInv,
+      effectiveUnits: uBefore,   // units held at this payment date
+      scaledDown: (!isInv && !isSaleRow && uBefore !== originalUnits)  // flag for display
     };
   });
 }
@@ -2196,8 +2226,11 @@ function openAddModal(editId) {
       pendingISINs = [...(ins.isins||[])];
       document.getElementById('f-purchase-price').value = ins.purchasePrice || '';
       document.getElementById('f-purchase-date').value  = ins.purchaseDate  || '';
+      // Pre-fill PV yield with the instrument's stored XIRR (most relevant yield)
+      if (ins.xirr > 0) document.getElementById('f-pv-yield').value = (ins.xirr * 100).toFixed(4);
       if (document.getElementById('f-isin-start-date'))
-        document.getElementById('f-isin-start-date').value = ins.isinStartDate || ins.purchaseDate || '';
+        // ISIN Start Date defaults to empty (ISIN inception may predate purchase)
+        document.getElementById('f-isin-start-date').value = ins.isinStartDate || '';
       document.getElementById('f-accrued-paid').value   = ins.accruedPaid   || 0;
       ins.cashflows.forEach(cf => addCashflowRow(cf));
       calcDirtyPrice();
@@ -2778,7 +2811,7 @@ function saveInstrument() {
 
   const purchasePrice = parseFloat(document.getElementById('f-purchase-price').value) || 0;
   const purchaseDate    = document.getElementById('f-purchase-date').value || '';
-  const isinStartDate   = document.getElementById('f-isin-start-date')?.value || purchaseDate;
+  const isinStartDate   = document.getElementById('f-isin-start-date')?.value || '';  // separate from purchase date
   const accruedPaid   = parseFloat(document.getElementById('f-accrued-paid').value) || 0;
   // Auto-calculate XIRR from cashflows (Newton-Raphson)
   let computedXirr = xirr; // use manual entry as fallback
@@ -3483,7 +3516,9 @@ function renderInstrumentCashflowTable(ins, viewMode, cfScope) {
   bn+='<span><span style="color:var(--muted);">Gross Int</span> <strong>'+fmtCcy(tGI/div_u)+'</strong></span>';
   bn+='<span><span style="color:var(--muted);">TDS @'+(tdr*100).toFixed(0)+'%</span> <strong style="color:var(--red);">'+fmtCcy(tTDS/div_u)+'</strong></span>';
   bn+='<span><span style="color:var(--muted);">Net Int</span> <strong style="color:var(--green);">'+fmtCcy(tNI/div_u)+'</strong></span>';
-  if(ins.xirr>0) bn+='<span><span style="color:var(--muted);">XIRR (Net)</span> <strong style="color:var(--green);">'+(ins.xirr*100).toFixed(4)+'%</strong></span>';
+  // Compute both XIRRs from scaled cashflows (reflects partial sales correctly)
+  var netXIRR = computeNetXIRR(ins);
+  if(netXIRR>0) bn+='<span><span style="color:var(--muted);">XIRR (Net)</span> <strong style="color:var(--green);">'+(netXIRR*100).toFixed(4)+'%</strong></span>';
   if(grossXIRR>0) bn+='<span><span style="color:var(--muted);">XIRR (Gross)</span> <strong style="color:var(--accent2);">'+(grossXIRR*100).toFixed(4)+'%</strong></span>';
   if(pvc){
     bn+='<span style="border-left:1px solid var(--border);padding-left:12px;"><span style="color:var(--muted);">Clean</span> <strong>₹'+pvc.cleanPerUnit.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'/u</strong></span>';
@@ -3499,7 +3534,7 @@ function renderInstrumentCashflowTable(ins, viewMode, cfScope) {
     var gross=isInv?0:(pr+ir)/div_u, os=r.osBefore>0?r.osBefore/div_u:0;
     var pc=isInv?'var(--red)':(pr>0?'var(--green)':'var(--muted)');
     var nc=net>0?'var(--green)':net<0?'var(--red)':'var(--muted)';
-    var bg=isInv?'background:rgba(251,113,133,0.04);':notes.startsWith('SALE')?'background:rgba(167,139,250,0.04);':(pr>0?'background:rgba(52,211,153,0.02);':'');
+    var bg=isInv?'background:rgba(251,113,133,0.04);':notes.startsWith('SALE')?'background:rgba(167,139,250,0.04);':(r.scaledDown?'background:rgba(251,191,36,0.02);border-left:2px solid rgba(251,191,36,0.3);':(pr>0?'background:rgba(52,211,153,0.02);':''));
     var cls=(r.dateStr<=todayStr&&!isInv)?'row-past':'';
     var rds=r.recordDate?fmtDate(new Date(r.recordDate)):'—';
     var isSP=notes.startsWith('SALE-PRINCIPAL'),isSA=notes.startsWith('SALE-ACCRUED-INT'),isSCG=notes.startsWith('SALE-CAPITAL-GAIN');
@@ -3509,10 +3544,11 @@ function renderInstrumentCashflowTable(ins, viewMode, cfScope) {
       :isSCG?'<span style="color:'+(pr>=0?'var(--green)':'var(--red)')+';font-size:9px;font-weight:600;">'+(pr>=0?'📈':'📉')+' Cap '+(pr>=0?'Gain':'Loss')+'</span>'
       :r.dateStr<=todayStr?'<span style="color:var(--muted);font-size:9px;">✓ Paid</span>'
       :'<span style="color:var(--green);font-size:9px;">⏳ Upcoming</span>';
+    var uLabel = r.scaledDown ? '<br><span style="font-size:8px;color:var(--yellow);" title="Scaled for '+r.effectiveUnits+' units after partial sale">⚠ '+r.effectiveUnits+'u</span>' : '';
     var pu=viewMode==='overall'
-      ?((int>0?'₹'+(ir/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'')+(pr>0&&!isInv&&!notes.startsWith('SALE')?(int>0?'<br>':'')+'<span style="font-size:9px;color:var(--muted);">p:₹'+(pr/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':'')+(isInv?'<span style="font-size:9px;color:var(--muted);">₹'+(Math.abs(pr)/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'/u</span>':''))||'—'
+      ?((int>0?'₹'+(ir/u_eff).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+uLabel:'')+(pr>0&&!isInv&&!notes.startsWith('SALE')?(int>0?'<br>':'')+'<span style="font-size:9px;color:var(--muted);">p:₹'+(pr/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':'')+(isInv?'<span style="font-size:9px;color:var(--muted);">₹'+(Math.abs(pr)/u).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'/u</span>':''))||'—'
       :'<span style="font-size:9px;color:var(--muted);">÷'+u+'</span>';
-    var nc2=notes.replace(/^SALE-PRINCIPAL:/,'Prin').replace(/^SALE-ACCRUED-INT:/,'AccInt').replace(/^SALE-CAPITAL-GAIN:/,'CapGain').replace(/^SALE:/,'SALE');
+    var nc2=displayNote(notes);
     var ei2=ins.cashflows.findIndex(function(cf){return cf.date===r.dateStr&&Math.abs((cf.principal||0)-pr)<0.01&&Math.abs((cf.interest||0)-ir)<0.01;});
     var eb=ei2>=0?'<button onclick="editCashflowInstrument(\''+ins.id+'\','+ei2+')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:2px 5px;cursor:pointer;font-size:9px;">✎</button>':'';
     function fc(n){return n!==0?fmtCcy(n):'–';}
@@ -3555,26 +3591,52 @@ function renderInstrumentCashflowTable(ins, viewMode, cfScope) {
 }
 
 // ── Gross XIRR (pre-TDS) ──
-function computeGrossXIRR(ins) {
-  var cfs=ins.cashflows.filter(function(cf){return (cf.principal||0)!==0||(cf.interest||0)!==0;})
-    .sort(function(a,b){return a.date.localeCompare(b.date);});
-  if(cfs.length<2)return 0;
-  var hasOut=cfs.some(function(cf){return (cf.principal||0)<0;});
-  var hasIn=cfs.some(function(cf){return ((cf.principal||0)+(cf.interest||0))>0;});
-  if(!hasOut||!hasIn)return 0;
-  var d0=new Date(cfs[0].date),r=0.12;
-  for(var it=0;it<300;it++){
-    var f=0,df=0;
-    cfs.forEach(function(cf){
-      var yrs=(new Date(cf.date)-d0)/(365*86400000);
-      var amt=(cf.principal||0)+(cf.interest||0);
-      if(Math.abs(yrs)<1e-10){f+=amt;return;}
-      f+=amt/Math.pow(1+r,yrs);df-=yrs*amt/Math.pow(1+r,yrs+1);
+// Newton-Raphson XIRR solver on an array of {date, amount} objects
+function solveXIRR(cashflows) {
+  if (!cashflows || cashflows.length < 2) return 0;
+  var hasOut = cashflows.some(function(cf){ return cf.amount < 0; });
+  var hasIn  = cashflows.some(function(cf){ return cf.amount > 0; });
+  if (!hasOut || !hasIn) return 0;
+  var d0 = cashflows[0].date;
+  var r = 0.12;
+  for (var it = 0; it < 400; it++) {
+    var f = 0, df = 0;
+    cashflows.forEach(function(cf) {
+      var yrs = (cf.date - d0) / (365 * 86400000);
+      var amt = cf.amount;
+      if (Math.abs(yrs) < 1e-10) { f += amt; return; }
+      var pv = amt / Math.pow(1 + r, yrs);
+      f  += pv;
+      df -= yrs * pv / (1 + r);
     });
-    if(Math.abs(df)<1e-12)break;
-    var d=f/df;r-=d;if(Math.abs(d)<1e-9)break;
+    if (Math.abs(df) < 1e-12) break;
+    var delta = f / df;
+    r -= delta;
+    if (Math.abs(delta) < 1e-9) break;
   }
-  return (r>-0.99&&r<50&&isFinite(r))?r:0;
+  return (r > -0.99 && r < 50 && isFinite(r)) ? r : 0;
+}
+
+// Compute XIRR on GROSS cashflows (pre-TDS) using scaled computeRows output
+function computeGrossXIRR(ins) {
+  var rows = computeRows(ins);
+  var cfs  = rows.map(function(r) {
+    // Investment rows: outflow = negative (use actual amount paid)
+    if (r.isInv) return { date: r.date, amount: r.principal };  // negative
+    // All other rows: gross cashflow = principal + gross interest (before TDS)
+    return { date: r.date, amount: r.cashflow };
+  }).filter(function(cf) { return cf.amount !== 0; });
+  return solveXIRR(cfs);
+}
+
+// Compute XIRR on NET cashflows (post-TDS) using scaled computeRows output
+function computeNetXIRR(ins) {
+  var rows = computeRows(ins);
+  var cfs  = rows.map(function(r) {
+    if (r.isInv) return { date: r.date, amount: r.principal };   // negative
+    return { date: r.date, amount: r.cfAfterTds };               // net of TDS
+  }).filter(function(cf) { return cf.amount !== 0; });
+  return solveXIRR(cfs);
 }
 
 // ── Clean/Dirty Price & Quote at today ──
@@ -3588,10 +3650,14 @@ function computeCleanDirtyPrice(ins) {
     return cf.date>today&&((cf.principal||0)>0||(cf.interest||0)>0)&&!(cf.notes||'').startsWith('SALE');
   }).sort(function(a,b){return a.date.localeCompare(b.date);});
   if(!future.length)return null;
+  // Use computeRows for scaled future cashflows (correct after partial sale)
+  var scaledFuture = computeRows(ins).filter(function(row){
+    return !row.isInv && row.dateStr > today && row.cashflow !== 0;
+  });
   var pvT=0,sd=new Date(today);
-  future.forEach(function(cf){
-    var y=(new Date(cf.date)-sd)/(365*86400000);
-    if(y>0)pvT+=((cf.principal||0)+(cf.interest||0))/Math.pow(1+r,y);
+  scaledFuture.forEach(function(row){
+    var y=(row.date-sd)/(365*86400000);
+    if(y>0)pvT+=row.cashflow/Math.pow(1+r,y);
   });
   var dirty=pvT/u;
   var os=u*fv;
@@ -5398,15 +5464,16 @@ function calcSellProceeds() {
   const tdr= ins.tdsRate   || 0.10;
   const u  = ins.units     || 1;
 
-  // Outstanding principal at sell date
+  // Outstanding principal at sell date — exclude SALE-CAPITAL-GAIN rows (they don't reduce OS)
   let osAtSell = u * fv;
-  ins.cashflows.filter(cf => cf.date <= sellDate && (cf.principal||0) > 0).forEach(cf => { osAtSell -= (cf.principal||0); });
+  ins.cashflows.filter(cf => cf.date <= sellDate && (cf.principal||0) > 0 && !(cf.notes||'').startsWith('SALE-CAPITAL-GAIN')).forEach(cf => { osAtSell -= (cf.principal||0); });
   osAtSell = Math.max(0, osAtSell);
   const osPerUnit = osAtSell / u;
 
   // Accrued interest at sell date (Excel Actual/365 methodology)
   const couponRate = ins.nominal || 0;
-  const allCoupons = ins.cashflows.filter(cf => (cf.interest||0) > 0).sort((a,b)=>a.date.localeCompare(b.date));
+  // Exclude SALE-ACCRUED-INT rows — only count actual scheduled coupon payments
+  const allCoupons = ins.cashflows.filter(cf => (cf.interest||0) > 0 && !(cf.notes||'').startsWith('SALE')).sort((a,b)=>a.date.localeCompare(b.date));
   const pastCoupons= allCoupons.filter(cf => cf.date <= sellDate);
   const nextCoupon = allCoupons.find(cf => cf.date > sellDate);
   let accruedPerUnit = 0, accruedDays = 0;
@@ -5463,10 +5530,12 @@ function calcSellProceeds() {
   const pastIntNet = pastRows.reduce((a,r) => a + r.netInt * (units/u), 0);
   const pastPrin   = pastRows.reduce((a,r) => a + Math.max(0,r.principal) * (units/u), 0);
 
-  // TDS on accrued interest only (not on principal portion of sale)
-  const tdsonAccrued = accruedTotal * tdr;
-  const netAccrued   = accruedTotal - tdsonAccrued;
-  const netProceeds  = principalPart + netAccrued;  // principal passes through, accrued is net of TDS
+  // TDS on bond SALE = NIL
+  // Per CBDT circular & Sec 193 — TDS does not apply on secondary market
+  // sale of bonds/NCDs. Buyer pays full dirty price; no TDS deduction on sale.
+  const tdsonAccrued = 0;
+  const netAccrued   = accruedTotal;
+  const netProceeds  = principalPart + netAccrued + (salePricePerUnit - osPerUnit) * units;  // = total proceeds
 
   // Realised P&L = Total received (past cashflows + net sale proceeds) - cost basis
   const totalReceived = pastIntNet + pastPrin + netProceeds;
@@ -5479,17 +5548,23 @@ function calcSellProceeds() {
   const saleGain      = netProceeds - remainingCost;
   const saleGainPct   = remainingCost > 0 ? (saleGain / remainingCost) * 100 : 0;
 
+  // Quote = clean price per ₹100 of ORIGINAL face value (market standard)
+  const quotePer100 = fv > 0 ? (salePricePerUnit / fv) * 100 : 0;
+  const capitalGainPart = (salePricePerUnit - osPerUnit) * units;  // clean - OS = cap gain
+
   const grid = document.getElementById('sell-summary-grid');
   grid.innerHTML =
     sellMetric('O/S Principal/Unit', fmtCcy(osPerUnit), 'var(--muted)')
     + sellMetric('Accrued Int/Unit (' + accruedDays + 'd)', fmtCcy(accruedPerUnit), 'var(--accent2)')
     + sellMetric('Clean Price/Unit', fmtCcy(salePricePerUnit), 'var(--text)')
+    + sellMetric('Quote (per ₹100 FV)', quotePer100.toLocaleString('en-IN',{minimumFractionDigits:4,maximumFractionDigits:4}), 'var(--yellow)')
     + sellMetric('Dirty Price/Unit', fmtCcy(dirtyPerUnit), 'var(--yellow)')
-    + sellMetric('Total Consideration (' + units + ' units)', fmtCcy(totalProceeds), 'var(--text)')
-    + sellMetric('Principal Component', fmtCcy(principalPart), 'var(--text)')
-    + sellMetric('Accrued Int (Total)', fmtCcy(accruedTotal), 'var(--accent2)')
-    + sellMetric('TDS on Accrued @' + (tdr*100).toFixed(0) + '%', fmtCcy(tdsonAccrued), 'var(--red)')
-    + sellMetric('Net Settlement', fmtCcy(netProceeds), 'var(--green)')
+    + sellMetric('Total Consideration (' + units + ' unit' + (units>1?'s':'') + ')', fmtCcy(totalProceeds), 'var(--text)')
+    + sellMetric('= Principal', fmtCcy(principalPart), 'var(--muted)')
+    + sellMetric('+ Capital Gain/(Loss)', (capitalGainPart>=0?'+':'')+fmtCcy(capitalGainPart), capitalGainPart>=0?'var(--green)':'var(--red)')
+    + sellMetric('+ Accrued Interest', fmtCcy(accruedTotal), 'var(--accent2)')
+    + sellMetric('TDS on Sale', 'NIL', 'var(--green)')
+    + sellMetric('Net Settlement', fmtCcy(totalProceeds), 'var(--green)')
     + sellMetric('Cost Basis', fmtCcy(costBasis), 'var(--muted)')
     + sellMetric('Past Int Recd (Net)', fmtCcy(pastIntNet), 'var(--green)')
     + sellMetric('Past Principal Recd', fmtCcy(pastPrin), 'var(--green)')
@@ -5500,7 +5575,7 @@ function calcSellProceeds() {
   const noteEl = document.getElementById('sell-calc-note');
   if (noteEl) noteEl.textContent =
     'Accrued: ' + accruedDays + ' days × ' + (couponRate*100).toFixed(2) + '% coupon on ₹' + osPerUnit.toLocaleString('en-IN',{maximumFractionDigits:0}) + '/unit O/S'
-    + ' · TDS @' + (tdr*100).toFixed(0) + '% on accrued interest only (not on principal/proceeds)';
+    + ' · No TDS on secondary market bond sale (Sec 193 exemption)';
 
   document.getElementById('sell-result').style.display = 'block';
 }
@@ -5525,7 +5600,8 @@ function confirmSell() {
   const fv         = ins.faceValue || 1000;
   const u          = ins.units || 1;
   const couponRate = ins.nominal || 0;
-  const tdr        = ins.tdsRate || 0.10;
+  // TDS on secondary market bond sale = 0 (Sec 193 exemption)
+  const tdr        = 0;  // No TDS on bond sale consideration
 
   // O/S principal at sale date
   let osAtSell = u * fv;
@@ -6276,27 +6352,56 @@ function renderBondsCashflows() {
   html += '<thead><tr>'
     + '<th>Date</th><th>Instrument</th><th>Record Date</th>'
     + '<th>Principal</th><th>Gross Interest</th><th>TDS</th>'
-    + '<th>Net Cashflow</th><th>Per Unit</th><th>Status</th>'
+    + '<th>Net Cashflow</th><th>Per Unit</th><th>Status</th><th>Notes</th>'
     + '</tr></thead><tbody>';
 
-  var cumul = 0;
   rows.forEach(function(item) {
-    var r = item.r; var ins = item.ins;
+    var r = item.r, ins = item.ins;
     if (r.interest === 0 && r.principal === 0) return;
-    cumul += r.cfAfterTds;
-    var past = r.date <= today;
-    var rowBg = r.isInv ? 'background:rgba(251,113,113,0.04);' : '';
-    var rdStr = r.recordDate ? (function(){try{return fmtDate(new Date(r.recordDate));}catch(e){return r.recordDate;}})() : '—';
+    var past    = r.date <= today;
+    var notes   = r.notes || '';
+    var isSP    = notes.startsWith('SALE-PRINCIPAL');
+    var isSA    = notes.startsWith('SALE-ACCRUED-INT');
+    var isSCG   = notes.startsWith('SALE-CAPITAL-GAIN');
+    var isSale  = isSP || isSA || isSCG;
+    var isScaled= r.scaledDown;
+
+    var rowBg = r.isInv  ? 'background:rgba(251,113,113,0.04);'
+      : isSale            ? 'background:rgba(167,139,250,0.05);'
+      : isScaled          ? 'background:rgba(251,191,36,0.02);border-left:2px solid rgba(251,191,36,0.25);'
+      : '';
+
+    var rdStr   = r.recordDate ? fmtDate(new Date(r.recordDate)) : '—';
+    var pColor  = r.isInv ? 'var(--red)' : (r.principal > 0 ? 'var(--green)' : 'var(--muted)');
+    var netColor= r.cfAfterTds >= 0 ? 'var(--green)' : 'var(--red)';
+
+    var status = r.isInv ? '<span style="color:var(--red);font-weight:600;">📥 Invested</span>'
+      : isSP    ? '<span style="color:var(--green);font-weight:600;">💰 Sale-Prin</span>'
+      : isSCG   ? '<span style="color:'+(r.principal>=0?'var(--green)':'var(--red)') + ';font-weight:600;">'+(r.principal>=0?'📈':'📉')+(r.principal>=0?' Cap Gain':' Cap Loss')+'</span>'
+      : isSA    ? '<span style="color:var(--accent2);font-weight:600;">💰 Sale-AccInt</span>'
+      : past    ? '<span style="color:var(--muted);">✓ Paid</span>'
+      : '<span style="color:var(--green);">⏳ Upcoming</span>';
+
+    // Notes — clean and descriptive
+    var noteDisplay = displayNote(notes);
+
+    // Scaled indicator
+    var puCell = r.intPerUnit > 0
+      ? fmtPerUnit(r.intPerUnit, 1)
+        + (isScaled ? ' <span style="font-size:8px;color:var(--yellow);" title="Scaled for '+r.effectiveUnits+' units after partial sale">⚠'+r.effectiveUnits+'u</span>' : '')
+      : '—';
+
     html += '<tr class="'+(past&&!r.isInv?'row-past':'')+'" style="'+rowBg+'">'
       + '<td class="date-col" style="white-space:nowrap;">'+fmtDate(r.date)+'</td>'
       + '<td style="font-size:10px;">'+ins.name+'</td>'
       + '<td class="date-col" style="color:var(--yellow);font-size:10px;">'+rdStr+'</td>'
-      + '<td style="text-align:right;font-size:11px;color:'+(r.isInv?'var(--red)':r.principal>0?'var(--green)':'var(--muted)')+';">'+(r.principal!==0?fmtCcy(r.principal):'—')+'</td>'
+      + '<td style="text-align:right;font-size:11px;color:'+pColor+';">'+(r.principal!==0?fmtCcy(r.principal):'—')+'</td>'
       + '<td style="text-align:right;font-size:11px;color:var(--green);">'+(r.interest>0?fmtCcy(r.interest):'—')+'</td>'
       + '<td style="text-align:right;font-size:10px;color:var(--red);">'+(r.tds>0?fmtCcy(r.tds):'—')+'</td>'
-      + '<td style="text-align:right;font-size:11px;font-weight:600;color:'+(r.cfAfterTds>=0?'var(--green)':'var(--red)')+';">'+fmtCcy(r.cfAfterTds)+'</td>'
-      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">'+(r.intPerUnit>0?fmtPerUnit(r.intPerUnit,1):'—')+'</td>'
-      + '<td style="font-size:9px;text-align:center;">'+(r.isInv?'<span style="color:var(--red);">Invested</span>':past?'<span style="color:var(--muted);">Paid</span>':'<span style="color:var(--green);">Upcoming</span>')+'</td>'
+      + '<td style="text-align:right;font-size:11px;font-weight:600;color:'+netColor+';">'+fmtCcy(r.cfAfterTds)+'</td>'
+      + '<td style="text-align:right;font-size:10px;color:var(--accent2);">'+puCell+'</td>'
+      + '<td style="font-size:9px;text-align:center;">'+status+'</td>'
+      + '<td style="font-size:9px;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;" title="'+notes+'">'+noteDisplay+'</td>'
       + '</tr>';
   });
   html += '</tbody></table></div>';
