@@ -792,12 +792,12 @@
         <input type="text" id="f-name" placeholder="e.g. True Credit FD">
       </div>
       <div class="form-field">
-        <label>Nominal % (annual)</label>
-        <input type="number" id="f-nominal" placeholder="16.7948" step="0.0001">
+        <label>Coupon Rate % (annual) <span style="font-size:9px;color:var(--muted);">as printed on bond</span></label>
+        <input type="number" id="f-nominal" placeholder="e.g. 14.50" step="0.0001">
       </div>
       <div class="form-field">
-        <label>XIRR % (annual) <span style="color:var(--accent2);font-size:9px;">auto-calculated on save</span></label>
-        <input type="number" id="f-xirr" placeholder="Auto-calc from cashflows" step="0.0001">
+        <label>XIRR / YTM % <span style="color:var(--accent2);font-size:9px;">auto-calc on save from cashflows</span></label>
+        <input type="number" id="f-xirr" placeholder="Auto-calc — leave blank" step="0.0001">
       </div>
     </div>
     <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
@@ -2814,30 +2814,20 @@ function saveInstrument() {
   const isinStartDate   = document.getElementById('f-isin-start-date')?.value || '';  // separate from purchase date
   const accruedPaid   = parseFloat(document.getElementById('f-accrued-paid').value) || 0;
   // Auto-calculate XIRR from cashflows (Newton-Raphson)
-  let computedXirr = xirr; // use manual entry as fallback
+  // Auto-calculate XIRR from the cashflows on net basis (post-TDS)
+  // Use Actual/365 and our shared solveXIRR solver
+  let computedXirr = xirr; // fallback to manual entry
   if (cashflows.length >= 2) {
     const hasCost = cashflows.some(cf => (cf.principal||0) < 0);
     if (hasCost) {
-      const xirrCFs = cashflows.map(cf => ({
-        date: cf.date,
-        amt: (cf.principal||0) + (cf.interest||0) - ((cf.interest||0)>0?(cf.interest||0)*(tdsRate):0)
-      })).filter(cf => cf.amt !== 0);
-      if (xirrCFs.length >= 2) {
-        const d0 = new Date(xirrCFs[0].date);
-        let r = 0.12;
-        for (let iter = 0; iter < 200; iter++) {
-          let f = 0, df = 0;
-          xirrCFs.forEach(cf => {
-            const yrs = (new Date(cf.date) - d0) / (365.25 * 86400000);
-            f  += cf.amt / Math.pow(1+r, yrs);
-            df -= yrs * cf.amt / Math.pow(1+r, yrs+1);
-          });
-          if (Math.abs(df) < 1e-12) break;
-          const delta = f / df; r -= delta;
-          if (Math.abs(delta) < 1e-9) break;
-        }
-        if (r > -1 && r < 10) computedXirr = r; // sanity check
-      }
+      const xirrInput = cashflows
+        .filter(cf => ((cf.principal||0) !== 0) || ((cf.interest||0) !== 0))
+        .map(cf => {
+          var tds = (cf.interest||0) > 0 ? (cf.interest||0) * tdsRate : 0;
+          return { date: new Date(cf.date), amount: (cf.principal||0) + (cf.interest||0) - tds };
+        }).filter(cf => cf.amount !== 0);
+      const r = solveXIRR(xirrInput);
+      if (r > -0.99 && r < 5) computedXirr = r;  // >500% XIRR is nonsensical
     }
   }
 
@@ -6204,7 +6194,8 @@ function renderBondsDashboard() {
       var inv = ins.cashflows.filter(function(cf){return (cf.principal||0)<0;}).reduce(function(a,cf){return a+Math.abs(cf.principal||0);},0);
       var rating = ins.creditRating && ins.creditRating.rating ? ins.creditRating.rating : '—';
       var ratingCls = getRatingClass(rating);
-      html += '<div class="bond-card" style="cursor:pointer;" onclick="navTo(\'bonds\');setTimeout(function(){switchSubTab(\'instruments\');},50);">'
+      var cardInsId = ins.id;
+      html += '<div class="bond-card" style="cursor:pointer;" onclick="(function(id){currentSubTab=\'instruments\';navTo(\'bonds\');setTimeout(function(){switchSubTab(\'instruments\');var el=document.getElementById(\'ins-panel-\'+id);if(el){el.scrollIntoView({behavior:\'smooth\',block:\'start\'});el.style.boxShadow=\'0 0 0 2px var(--accent2)\';setTimeout(function(){el.style.boxShadow=\'\';},1800);}},120);})(\''+cardInsId+'\');">'
         + '<div class="bond-card-header" style="display:flex;align-items:center;justify-content:space-between;">'
         + '<span>'+ins.name+'</span>'
         + '<span class="rating-badge '+ratingCls+'">'+rating+'</span>'
@@ -6215,13 +6206,13 @@ function renderBondsDashboard() {
         + bondField('Units × Face', u+' × ₹'+fv.toLocaleString('en-IN'), '')
         + bondField('Invested', fmtPort(inv||pp*u), 'red')
         + bondField('Coupon', ins.nominal > 0 ? (ins.nominal*100).toFixed(4)+'%' : '—', 'gold')
-        + bondField('XIRR', ins.xirr > 0 ? (ins.xirr*100).toFixed(4)+'%' : '—', 'green')
+        + bondField('XIRR (stored)', ins.xirr > 0 ? (ins.xirr*100).toFixed(4)+'%' : '—', 'green')
         + '</div>'
-        + '<div style="padding:8px 16px;border-top:1px solid var(--border);display:flex;gap:6px;">'
-        + '<button onclick="event.stopPropagation();openAddModal(\''+ins.id+'\')" class="btn btn-ghost btn-sm">✎ Edit</button>'
-        + '<button onclick="event.stopPropagation();openPVModal(\''+ins.id+'\')" class="btn btn-ghost btn-sm" style="color:var(--accent2);">📐 PV/YTM</button>'
-        + '<button onclick="event.stopPropagation();openSellModal(\''+ins.id+'\')" class="btn-sell">Sell</button>'
-        + '<button onclick="event.stopPropagation();removeInstrument(\''+ins.id+'\')" style="background:transparent;border:1px solid rgba(251,113,133,0.35);color:var(--red);border-radius:5px;padding:4px 10px;cursor:pointer;font-family:var(--font-mono);font-size:10px;transition:all 0.15s;" onmouseover="this.style.background=\'rgba(251,113,133,0.1)\'" onmouseout="this.style.background=\'transparent\'">🗑 Delete</button>'
+        + '<div style="padding:8px 16px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;">'
+        + '<button onclick="event.stopPropagation();openAddModal(\''+cardInsId+'\')" class="btn btn-ghost btn-sm">✎ Edit</button>'
+        + '<button onclick="event.stopPropagation();openPVModal(\''+cardInsId+'\')" class="btn btn-ghost btn-sm" style="color:var(--accent2);">📐 PV/YTM</button>'
+        + '<button onclick="event.stopPropagation();openSellModal(\''+cardInsId+'\')" class="btn-sell">Sell</button>'
+        + '<button onclick="event.stopPropagation();removeInstrument(\''+cardInsId+'\')" style="background:transparent;border:1px solid rgba(251,113,133,0.35);color:var(--red);border-radius:5px;padding:4px 10px;cursor:pointer;font-family:var(--font-mono);font-size:10px;" onmouseover="this.style.background=\'rgba(251,113,133,0.1)\'" onmouseout="this.style.background=\'transparent\'">🗑 Delete</button>'
         + '</div>'
         + '</div>';
     });
@@ -6312,7 +6303,7 @@ function renderBondsInstruments() {
   if (!instruments.length) return '<div class="empty-state"><div class="icon">📑</div><p>No bonds added yet.</p></div>';
   var html = '';
   instruments.forEach(function(ins) {
-    html += '<div style="margin-bottom:20px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;">';
+    html += '<div id="ins-panel-'+ins.id+'" style="margin-bottom:20px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;transition:box-shadow 0.3s;">';
     // Panel header
     var u=ins.units||1; var fv=ins.faceValue||1000; var pp=ins.purchasePrice||0;
     html += '<div style="background:var(--surface2);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">';
